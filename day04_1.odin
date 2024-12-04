@@ -15,16 +15,32 @@ main :: proc() {
 }
 
 @(test)
-test :: proc(t: ^testing.T) {
+test_1 :: proc(t: ^testing.T) {
     input := `
 ..X...
 .SAMX.
 .A..A.
 XMAS.S
-.X....
-`
+.X....`
     result := execute(transmute([]u8)input)
     testing.expect_value(t, result, 4)
+}
+
+@(test)
+test_2 :: proc(t: ^testing.T) {
+    input := `
+MMMSXXMASM
+MSAMXMSMSA
+AMXSXMAAMM
+MSAMASMSMX
+XMASAMXAMM
+XXAMMXXAMA
+SMSMSASXSS
+SAXAMASAAA
+MAMMMXMMMM
+MXMXAXMASX`
+    result := execute(transmute([]u8)input)
+    testing.expect_value(t, result, 18)
 }
 
 execute :: proc(input: []u8) -> int {
@@ -58,11 +74,11 @@ execute :: proc(input: []u8) -> int {
                 return true
             }
             
-            if is_match(lines[:], x, y, 1, 0) do result += 1
-            if is_match(lines[:], x, y, -1, 0) do result += 1
-            if is_match(lines[:], x, y, 0, 1) do result += 1
-            if is_match(lines[:], x, y, 0, -1) do result += 1
-            if is_match(lines[:], x, y, 1, 1) do result += 1
+            for x_dir in -1..=1 {
+                for y_dir in -1..=1 {
+                    if is_match(lines[:], x, y, x_dir, y_dir) do result += 1
+                }
+            }
         }
     }
 
