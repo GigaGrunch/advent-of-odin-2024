@@ -16,17 +16,7 @@ main :: proc() {
 }
 
 @(test)
-test_1 :: proc(t: ^testing.T) {
-    input := `
-M.S
-.A.
-M.S`
-    result := execute(transmute([]u8)input)
-    testing.expect_value(t, result, 1)
-}
-
-@(test)
-test_2 :: proc(t: ^testing.T) {
+test :: proc(t: ^testing.T) {
     input := `
 47|53
 97|13
@@ -69,16 +59,64 @@ execute :: proc(input: []u8) -> int {
     
     lines_it := tokenize(input, "\r\n")
     for line in next_token(&lines_it) {
-        rule_split := strings.split(line, "|", allocator=context.temp_allocator)
-        if len(rule_split) != 2 do break
-        
-        append(&rules, Rule {
-            lhs = strconv.atoi(rule_split[0]),
-            rhs = strconv.atoi(rule_split[1]),
-        })
-    }
+        defer free_all(context.temp_allocator)
     
-    fmt.printfln("rules: %v", rules)
+        rule_split := strings.split(line, "|", allocator=context.temp_allocator)
+        if len(rule_split) == 2 {
+            append(&rules, Rule {
+                lhs = strconv.atoi(rule_split[0]),
+                rhs = strconv.atoi(rule_split[1]),
+            })
+        }
+        else {
+            number_split := strings.split(line, ",", allocator=context.temp_allocator)
+            all_numbers := make([dynamic]int, allocator=context.temp_allocator)
+            for str in number_split {
+                append(&all_numbers, strconv.atoi(str))
+            }
+            
+            applicable_rules := make([dynamic]Rule, allocator=context.temp_allocator)
+            is_applicable :: proc(numbers: []int, rule: Rule) -> bool {
+                lhs_found := false
+                rhs_found := false
+                for number in numbers {
+                    if rule.lhs == number do lhs_found = true
+                    if rule.rhs == number do rhs_found = true
+                    if lhs_found && rhs_found do return true
+                }
+                return false
+            }
+            for rule in rules {
+                if is_applicable(all_numbers[:], rule) {
+                    append(&applicable_rules, rule)
+                }
+            }
+            
+            printed_numbers := make([dynamic]int, allocator=context.temp_allocator)
+            is_printed :: proc(printed_numbers: []int, number: int) -> bool {
+                for other in printed_numbers do if other == number do return true
+                return false
+            }
+            
+            is_correct_order := true
+            
+            for number in all_numbers {
+                for rule in applicable_rules {
+                    if number == rule.rhs && !is_printed(printed_numbers[:], rule.lhs) {
+                        is_correct_order = false
+                    }
+                    else {
+                        append(&printed_numbers, number)
+                    }
+                }
+            }
+            
+            if is_correct_order {
+                middle_index := len(all_numbers) / 2
+                result += all_numbers[middle_index]
+            }
+        }
+    }
 
     return result
 }
