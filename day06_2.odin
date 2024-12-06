@@ -71,29 +71,25 @@ execute :: proc(input: string) -> int {
         }
     }
     
-    Vec :: [2]int
-    up :: Vec{0, -1}
-    down :: Vec{0, 1}
-    left :: Vec{-1, 0}
-    right :: Vec{1, 0}
+    Pos :: [2]u8
+    Dir :: [2]i8
+    up :: Dir{0, -1}
+    down :: Dir{0, 1}
+    left :: Dir{-1, 0}
+    right :: Dir{1, 0}
     
-    guard_pos: Vec
-    guard_dir: Vec
+    guard_pos: Pos
+    guard_dir: Dir
     for line, y in lines {
         for char, x in line {
             switch char {
-            case '^':
-                guard_pos = {x, y}
-                guard_dir = up
-            case 'v':
-                guard_pos = {x, y}
-                guard_dir = down
-            case '<':
-                guard_pos = {x, y}
-                guard_dir = left
-            case '>':
-                guard_pos = {x, y}
-                guard_dir = right
+                case '^', 'v', '>', '<': guard_pos = {u8(x), u8(y)}
+            }
+            switch char {
+                case '^': guard_dir = up
+                case 'v': guard_dir = down
+                case '<': guard_dir = left
+                case '>': guard_dir = right
             }
         }
     }
@@ -102,10 +98,10 @@ execute :: proc(input: string) -> int {
     original_guard_pos := guard_pos
     original_guard_dir := guard_dir
     
-    original_path: [dynamic]Vec
+    original_path: [dynamic]Pos
     defer delete(original_path)
     
-    was_visited :: proc(visited: []Vec, pos: Vec) -> bool {
+    was_visited :: proc(visited: []Pos, pos: Pos) -> bool {
         for other in visited {
             if other == pos do return true
         }
@@ -117,7 +113,10 @@ execute :: proc(input: string) -> int {
             append(&original_path, guard_pos)
         }
         
-        next_pos := guard_pos + guard_dir
+        next_pos := [2]int {
+            int(guard_pos.x) + int(guard_dir.x),
+            int(guard_pos.y) + int(guard_dir.y),
+        }
         if next_pos.x < 0 || next_pos.x >= width || next_pos.y < 0 || next_pos.y >= height {
            break
         }
@@ -131,13 +130,13 @@ execute :: proc(input: string) -> int {
             }
         }
         else {
-            guard_pos = next_pos
+            guard_pos = { u8(next_pos.x), u8(next_pos.y) }
         }
     }
     
     loop_count := 0
     
-    PosDir :: struct { pos: Vec, dir: Vec }
+    PosDir :: struct { pos: Pos, dir: Dir }
     
     visited: [dynamic]PosDir
     defer delete(visited)
@@ -166,12 +165,15 @@ execute :: proc(input: string) -> int {
                 append(&visited, PosDir{ guard_pos, guard_dir })
             }
         
-            next_pos := guard_pos + guard_dir
+            next_pos := [2]int {
+                int(guard_pos.x) + int(guard_dir.x),
+                int(guard_pos.y) + int(guard_dir.y),
+            }
             if next_pos.x < 0 || next_pos.x >= width || next_pos.y < 0 || next_pos.y >= height {
                 break
             }
             
-            if next_pos == extra_obstacle || lines[next_pos.y][next_pos.x] == '#' {
+            if next_pos.x == int(extra_obstacle.x) && next_pos.y == int(extra_obstacle.y) || lines[next_pos.y][next_pos.x] == '#' {
                 switch guard_dir {
                     case up: guard_dir = right
                     case right: guard_dir = down
@@ -180,7 +182,7 @@ execute :: proc(input: string) -> int {
                 }
             }
             else {
-                guard_pos = next_pos
+                guard_pos = { u8(next_pos.x), u8(next_pos.y) }
             }
         }
     }
