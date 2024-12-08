@@ -129,48 +129,40 @@ execute :: proc(input: string) -> int {
     
     PosDir :: struct { pos: Vec, dir: Vec }
     
-    visited: [dynamic]PosDir
+    visited: map[PosDir]u8
     defer delete(visited)
     
     for extra_obstacle in original_path {
         if extra_obstacle == original_guard_pos do continue
-    
-        was_visited :: proc(visited: []PosDir, pos_dir: PosDir) -> bool {
-            for other in visited {
-                if other == pos_dir do return true
-            }
-            return false
-        }
         
         clear(&visited)
         
-        guard_pos := original_guard_pos
-        guard_dir := original_guard_dir
+        guard_pos_dir := PosDir{ original_guard_pos, original_guard_dir }
         
         for {
-            if was_visited(visited[:], PosDir{ guard_pos, guard_dir }) {
+            if guard_pos_dir in visited {
                 loop_count += 1
                 break
             }
             else {
-                append(&visited, PosDir{ guard_pos, guard_dir })
+                visited[guard_pos_dir] = 1
             }
         
-            next_pos := guard_pos + guard_dir
+            next_pos := guard_pos_dir.pos + guard_pos_dir.dir
             if next_pos.x < 0 || next_pos.x >= width || next_pos.y < 0 || next_pos.y >= height {
                 break
             }
             
             if next_pos == extra_obstacle || lines[next_pos.y][next_pos.x] == '#' {
-                switch guard_dir {
-                    case up: guard_dir = right
-                    case right: guard_dir = down
-                    case down: guard_dir = left
-                    case left: guard_dir = up
+                switch guard_pos_dir.dir {
+                    case up: guard_pos_dir.dir = right
+                    case right: guard_pos_dir.dir = down
+                    case down: guard_pos_dir.dir = left
+                    case left: guard_pos_dir.dir = up
                 }
             }
             else {
-                guard_pos = next_pos
+                guard_pos_dir.pos = next_pos
             }
         }
     }
