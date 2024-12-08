@@ -46,10 +46,16 @@ main :: proc() {
 execute :: proc(input: string) -> int {
     total_result := 0
     
+    print_progress :: proc(progress: f32) {
+        fmt.printf("  %v%%  \r", int(progress * 100))
+    }
+    
     lines := strings.split_lines(input)
     defer delete(lines)
-    for line in lines {
+    for line, line_index in lines {
         if len(line) == 0 do continue
+        
+        print_progress(f32(line_index) / f32(len(lines)))
         
         result_args_split := strings.split(line, ": ")
         defer delete(result_args_split)
