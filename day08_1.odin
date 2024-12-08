@@ -17,15 +17,15 @@ main :: proc() {
     test_result := execute(transmute(string)test_input)
     fmt.printfln("Test input -> %v (expected 14)", test_result)
     
-    // file_path :: "day07_input.txt"
-    // input, file_ok := os.read_entire_file(file_path)
-    // defer delete(input)
-    // if !file_ok {
-    //     fmt.printfln("Failed to read file '%v'", file_path)
-    //     os.exit(1)
-    // }
-    // result := execute(transmute(string)input)
-    // fmt.printfln("Real input -> %v", result)
+    file_path :: "day08_input.txt"
+    input, file_ok := os.read_entire_file(file_path)
+    defer delete(input)
+    if !file_ok {
+        fmt.printfln("Failed to read file '%v'", file_path)
+        os.exit(1)
+    }
+    result := execute(transmute(string)input)
+    fmt.printfln("Real input -> %v", result)
 }
 
 execute :: proc(input: string) -> int {
@@ -39,12 +39,11 @@ execute :: proc(input: string) -> int {
         if len(line) > 0 do append(&lines, transmute([]u8)line)
     }
     
-    width := len(lines)
-    height := len(lines[0])
+    Vec :: [2]int
     
-    Pos :: [2]int
+    bounds := Vec{len(lines), len(lines[0])}
     
-    antennas: map[u8][dynamic]Pos
+    antennas: map[u8][dynamic]Vec
     defer {
         for key in antennas do delete(antennas[key])
         delete(antennas)
@@ -54,12 +53,32 @@ execute :: proc(input: string) -> int {
         for char, x in line {
             if char != '.' {
                 if char not_in antennas do antennas[char] = nil
-                append(&antennas[char], Pos{x, y})
+                append(&antennas[char], Vec{x, y})
+            }
+        }
+    }
+    
+    in_bounds :: proc(bounds: Vec, pos: Vec) -> bool {
+        return pos.x >= 0 && pos.x < bounds.x && pos.y >= 0 && pos.y <= bounds.y
+    }
+    
+    antinodes: map[Vec]u8
+    defer delete(antinodes)
+    
+    for key in antennas {
+        key_antennas := antennas[key]
+        for antenna_a, i in key_antennas[:len(key_antennas) - 1] {
+            for antenna_b in key_antennas[i + 1:] {
+                pos_diff := antenna_a - antenna_b
+                maybe_antinodes := [2]Vec { antenna_a + pos_diff, antenna_b - pos_diff }
+                for antinode in maybe_antinodes {
+                    if in_bounds(bounds, antinode) do antinodes[antinode] = 1
+                }
             }
         }
     }
 
-    return 0
+    return len(antinodes)
 }
 
 print_progress :: proc(progress: f32) {
