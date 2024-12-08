@@ -5,6 +5,7 @@ import "core:strings"
 import "core:strconv"
 import "core:mem"
 import "core:os"
+import "core:testing"
 
 main :: proc() {
     track: mem.Tracking_Allocator
@@ -39,8 +40,6 @@ execute :: proc(input: string) -> int {
         if len(line) > 0 do append(&lines, transmute([]u8)line)
     }
     
-    Vec :: [2]int
-    
     bounds := Vec{len(lines), len(lines[0])}
     
     antennas: map[u8][dynamic]Vec
@@ -56,10 +55,6 @@ execute :: proc(input: string) -> int {
                 append(&antennas[char], Vec{x, y})
             }
         }
-    }
-    
-    in_bounds :: proc(bounds: Vec, pos: Vec) -> bool {
-        return pos.x >= 0 && pos.x < bounds.x && pos.y >= 0 && pos.y <= bounds.y
     }
     
     antinodes: map[Vec]u8
@@ -79,6 +74,22 @@ execute :: proc(input: string) -> int {
     }
 
     return len(antinodes)
+}
+
+Vec :: [2]int
+
+in_bounds :: proc(bounds: Vec, pos: Vec) -> bool {
+    return pos.x >= 0 && pos.x < bounds.x && pos.y >= 0 && pos.y < bounds.y
+}
+
+@(test)
+test_in_bounts :: proc(t: ^testing.T) {
+    testing.expect_value(t, in_bounds({10, 10}, {0, 0}), true)
+    testing.expect_value(t, in_bounds({10, 10}, {-1, 0}), false)
+    testing.expect_value(t, in_bounds({10, 10}, {0, -1}), false)
+    testing.expect_value(t, in_bounds({10, 10}, {9, 9}), true)
+    testing.expect_value(t, in_bounds({10, 10}, {10, 9}), false)
+    testing.expect_value(t, in_bounds({10, 10}, {9, 10}), false)
 }
 
 print_progress :: proc(progress: f32) {
