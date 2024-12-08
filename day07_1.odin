@@ -44,7 +44,7 @@ main :: proc() {
 }
 
 execute :: proc(input: string) -> int {
-    result := 0
+    total_result := 0
     
     lines := strings.split_lines(input)
     defer delete(lines)
@@ -60,19 +60,33 @@ execute :: proc(input: string) -> int {
         args := strings.split(result_args_split[1], " ")
         defer delete(args)
         
+        numbers := make([]int, len(args))
+        defer delete(numbers)
+        
+        for arg, i in args {
+            numbers[i] = strconv.atoi(arg)
+        }
+        
         op_count := uint(len(args) - 1)
         combination_count := uint(1 << op_count)
         
         for combination_index in 0..<combination_count {
-            fmt.printf("combination %v: ", combination_index)
+            current := numbers[0]
+        
             for op in 0..<op_count {
+                operand := numbers[op + 1]
                 op_mask: uint = 1 << op
                 is_mul := combination_index & op_mask == op_mask
-                fmt.printf("%v ", "*" if is_mul else "+")
+                if is_mul do current *= operand
+                else do current += operand
             }
-            fmt.println()
+            
+            if current == result {
+                total_result += result
+                break
+            }
         }
     }
 
-    return result
+    return total_result
 }
