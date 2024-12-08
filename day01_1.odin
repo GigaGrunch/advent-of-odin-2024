@@ -2,10 +2,14 @@ package main
 
 import "core:fmt"
 import "core:testing"
+import "core:strconv"
+import "core:math"
 import "core:os"
 
 main :: proc() {
-    fmt.println("Hello Sailor!")
+    input, _ := os.read_entire_file("day01_input.txt")
+    result := execute(input)
+    fmt.println(result)
 }
 
 @(test)
@@ -17,13 +21,43 @@ test :: proc(t: ^testing.T) {
 }
 
 execute :: proc(input: []u8) -> int {
+    left_numbers: [dynamic]int
+    defer delete(left_numbers)
+    right_numbers: [dynamic]int
+    defer delete(right_numbers)
+
     lines_it := tokenize(input, { '\r', '\n' })
-    
     for line in iterate(&lines_it) {
-        fmt.printfln("line: %v", line)
+        numbers_it := tokenize(line, {' '})
+        left_number, _ := iterate(&numbers_it)
+        right_number, _ := iterate(&numbers_it)
+        append(&left_numbers, strconv.atoi(string(left_number)))
+        append(&right_numbers, strconv.atoi(string(right_number)))
+    }
+    
+    sort :: proc(numbers: []int) {
+        for _ in numbers {
+            for i in 1..<len(numbers) {
+                number := numbers[i - 1]
+                other := numbers[i]
+                if other < number {
+                    numbers[i - 1] = other
+                    numbers[i] = number
+                }
+            }
+        }
+    }
+    
+    sort(left_numbers[:])
+    sort(right_numbers[:])
+    
+    result := 0
+    
+    for i in 0..<len(left_numbers) {
+        result += math.abs(left_numbers[i] - right_numbers[i])
     }
 
-    return 0
+    return result
 }
 
 tokenize :: proc(data: []u8, split_chars: []u8) -> Tokenizer {
@@ -33,7 +67,7 @@ tokenize :: proc(data: []u8, split_chars: []u8) -> Tokenizer {
     }
 }
 
-iterate :: proc(it: ^Tokenizer) -> (token: Maybe([]u8), ok: bool) {
+iterate :: proc(it: ^Tokenizer) -> (token: []u8, ok: bool) {
     if it.current >= len(it.data) do return nil, false
     
     at_split_char :: proc(it: ^Tokenizer) -> bool {
