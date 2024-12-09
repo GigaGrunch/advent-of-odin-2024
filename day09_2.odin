@@ -68,6 +68,25 @@ execute_string :: proc(input: string) -> int {
         }
     }
     
+    find_gap :: proc(block_layout: []int, min_size: int) -> []int {
+        for i := 0; i < len(block_layout); {
+            if block_layout[i] != -1 {
+                i += 1
+                continue
+            }
+            
+            gap_start := i
+            for ;i < len(block_layout); i += 1 {
+                if block_layout[i] != -1 do break
+            }
+            gap_end := i
+            
+            gap_size := gap_end - gap_start
+            if gap_size >= min_size do return block_layout[gap_start:][:min_size]
+        }
+        return nil
+    }
+    
     // select whole files from the right and find fitting gaps from the left
     for right_index := len(block_layout) - 1; right_index >= 0; {
         file_id := block_layout[right_index]
@@ -86,27 +105,10 @@ execute_string :: proc(input: string) -> int {
         }
         file_size := file_end - file_start
         
-        for left_index := 0; left_index < file_start; {
-            if block_layout[left_index] != -1 {
-                left_index += 1
-                continue
-            }
-            
-            gap_start := left_index
-            gap_end := left_index
-            for ;left_index < file_start; left_index += 1 {
-                if block_layout[left_index] != -1 {
-                    gap_end = left_index
-                    break
-                }
-            }
-            gap_size := gap_end - gap_start
-            
-            if gap_size >= file_size {
-                copy(block_layout[gap_start:][:file_size], block_layout[file_start:][:file_size])
-                copy(block_layout[file_start:][:file_size], empty_space[:file_size])
-                break
-            }
+        gap := find_gap(block_layout[:file_start], file_size)
+        if gap != nil {
+            copy(gap, block_layout[file_start:][:file_size])
+            copy(block_layout[file_start:][:file_size], empty_space[:file_size])
         }
     }
     
