@@ -79,23 +79,30 @@ execute_string :: proc(input: string) -> int {
         width = map_width,
     }
     
-    fmt.println("Map:")
-    print(topo_map)
+    peaks: [dynamic]Vec
+    defer delete(peaks)
     
-    raw_scores := make([]int, len(raw_map))
-    defer delete(raw_scores)
-    
-    for &score in raw_scores {
-        score = max(int)
+    for y in 0..<map_height {
+        for x in 0..<map_width {
+            if at(topo_map, x, y)^ == '9' do append(&peaks, Vec{x, y})
+        }
     }
     
-    scores := Map(int) {
-        raw = raw_scores,
+    raw_reachable_peaks := make([][]b8, len(raw_map))
+    defer {
+        for peak in raw_reachable_peaks do delete(peak)
+        delete(raw_reachable_peaks)
+    }
+    
+    for &peak in raw_reachable_peaks do peak = make([]b8, len(peaks))
+    
+    reachable_peaks := Map([]b8) {
+        raw = raw_reachable_peaks,
         height = map_height,
         width = map_width,
     }
     
-    // calculate score for every position
+    // determine reachable peaks for each position
     still_updating := true
     for still_updating {
         still_updating = false
@@ -103,21 +110,28 @@ execute_string :: proc(input: string) -> int {
         for y in 0..<map_height {
             for x in 0..<map_width {
                 height := at(topo_map, x, y)
-                score := at(scores, x, y)
+                reachables := at(reachable_peaks, x, y)
                 
                 if height^ == '9' {
-                    if set_score(score, 0) do still_updating = true
+                    for peak, i in peaks {
+                        if peak == {x, y} && add_reachable(reachables, i) {
+                            still_updating = true
+                            break
+                        }
+                    }
                     continue
                 }
             
-                neighbors := [][2]int { {x-1, y}, {x+1, y}, {x, y-1}, {x, y+1} }
+                neighbors := []Vec { {x-1, y}, {x+1, y}, {x, y-1}, {x, y+1} }
                 for neighbor in neighbors {
                     neighbor_exists := neighbor.x >= 0 && neighbor.x < map_width && neighbor.y >= 0 && neighbor.y < map_height
                     if neighbor_exists {
                         neighbor_height := at(topo_map, neighbor.x, neighbor.y)
-                        neighbor_score := at(scores, neighbor.x, neighbor.y)
-                        if neighbor_height^ == height^ + 1 && neighbor_score^ != max(int) {
-                            if set_score(score, min(neighbor_score^ + 1, score^)) do still_updating = true
+                        if neighbor_height^ == height^ + 1 {
+                            neighbor_reachables := at(reachable_peaks, neighbor.x, neighbor.y)
+                            for neighbor_reachable, i in neighbor_reachables {
+                                if neighbor_reachable && add_reachable(reachables, i) do still_updating = true
+                            }
                         }
                     }
                 }
@@ -125,31 +139,43 @@ execute_string :: proc(input: string) -> int {
         }
     }
     
-    fmt.println("Scores:")
-    print(scores)
+    // calculate score based on amount of reachable peaks
+    total_score := 0
+    for y in 0..<map_height {
+        for x in 0..<map_width {
+            height := at(topo_map, x, y)
+            if height^ == '0' {
+                for reachable in at(reachable_peaks, x, y) {
+                    if reachable do total_score += 1
+                }
+            }
+        }
+    }
 
-    return 0
+    return total_score
 }
 
-set_score :: proc(ptr: ^int, score: int) -> bool {
-    defer ptr^ = score
-    return ptr^ != score
+add_reachable :: proc(current: ^[]b8, new: int) -> bool {
+    defer current[new] = true
+    return !current[new]
 }
 
-print :: proc(topo_map: Map($T)) {
-    for value, i in topo_map.raw {
+print :: proc(some_map: Map($T)) {
+    for value, i in some_map.raw {
         if T == u8 do fmt.printf("%c ", value)
         else if value == max(T) do fmt.print(". ")
         else do fmt.printf("%v ", value)
-        if (i + 1) % topo_map.width == 0 {
+        if (i + 1) % some_map.width == 0 {
             fmt.println()
         }
     }
 }
 
-at :: proc(topo_map: Map($T), x, y: int) -> ^T {
-    return &topo_map.raw[y * topo_map.width + x]
+at :: proc(some_map: Map($T), x, y: int) -> ^T {
+    return &some_map.raw[y * some_map.width + x]
 }
+
+Vec :: [2]int
 
 Map :: struct($T: typeid) {
     raw: []T,
