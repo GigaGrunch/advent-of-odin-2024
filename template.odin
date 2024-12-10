@@ -7,7 +7,7 @@ import "core:mem"
 import "core:os"
 import "core:testing"
 
-runners := [?]struct{file_path: string, expected_result: Maybe(int)} {
+runners := []struct{file_path: string, expected_result: Maybe(int)} {
 
 }
 
