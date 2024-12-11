@@ -57,15 +57,18 @@ execute :: proc(input: string) -> int {
         current_str := transmute(string)current.buf[:]
     
         for number_str in strings.split_iterator(&current_str, " ") {
-            if all_zeros(number_str) {
+            if len(number_str) == 1 && number_str[0] == '0' {
                 strings.write_string(&next, "1 ")
             }
-            else if is_even(len(number_str)) {
+            else if len(number_str) % 2 == 0 {
                 number_1 := number_str[:len(number_str) / 2]
-                number_2 := number_str[len(number_str) / 2:]
-                strings.write_string(&next, number_1)
+                trimmed_1 := strings.trim_left(number_1, "0")
+                strings.write_string(&next, trimmed_1 if len(trimmed_1) > 0 else "0")
                 strings.write_string(&next, " ")
-                strings.write_string(&next, number_2)
+                
+                number_2 := number_str[len(number_str) / 2:]
+                trimmed_2 := strings.trim_left(number_2, "0")
+                strings.write_string(&next, trimmed_2 if len(trimmed_2) > 0 else "0")
                 strings.write_string(&next, " ")
             }
             else {
@@ -89,17 +92,6 @@ execute :: proc(input: string) -> int {
     }
 
     return count
-}
-
-all_zeros :: proc(str: string) -> bool {
-    for char in str {
-        if char != '0' do return false
-    }
-    return true
-}
-
-is_even :: proc(number: int) -> bool {
-    return number % 2 == 0
 }
 
 deinit_tracking_allocator :: proc(track: ^mem.Tracking_Allocator) {
