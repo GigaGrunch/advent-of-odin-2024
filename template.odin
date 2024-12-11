@@ -31,7 +31,7 @@ main :: proc() {
             error_count += 1
             continue
         }
-        result := execute(input)
+        result := execute(transmute(string)input)
         
         fmt.printf("%v -> %v", runner.file_path, result)
         expected_result, has_expected_result := runner.expected_result.?
@@ -43,18 +43,8 @@ main :: proc() {
     }
 }
 
-execute :: proc{execute_bytes, execute_string}
-
-execute_bytes :: proc(input: []u8) -> int {
-    return execute_string(transmute(string)input)
-}
-
-execute_string :: proc(input: string) -> int {
+execute :: proc(input: string) -> int {
     return 0
-}
-
-print_progress :: proc(progress: f32) {
-    fmt.printf("  %v%%  \r", int(progress * 100))
 }
 
 deinit_tracking_allocator :: proc(track: ^mem.Tracking_Allocator) {

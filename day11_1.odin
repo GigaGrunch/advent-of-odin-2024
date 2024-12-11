@@ -32,7 +32,7 @@ main :: proc() {
             error_count += 1
             continue
         }
-        result := execute(input)
+        result := execute(transmute(string)input)
         
         fmt.printf("%v -> %v", runner.file_path, result)
         expected_result, has_expected_result := runner.expected_result.?
@@ -44,65 +44,51 @@ main :: proc() {
     }
 }
 
-execute :: proc{execute_bytes, execute_string}
-
-execute_bytes :: proc(input: []u8) -> int {
-    return execute_string(transmute(string)input)
-}
-
-execute_string :: proc(input: string) -> int {
-    numbers: [dynamic]string
-    defer delete(numbers)
+execute :: proc(input: string) -> int {
+    current := strings.builder_make()
+    defer strings.builder_destroy(&current)
     
-    initial_numbers := strings.split(input, " ")
-    defer delete(initial_numbers)
+    next := strings.builder_make()
+    defer strings.builder_destroy(&next)
     
-    for number in initial_numbers {
-        trimmed := strings.trim_space(number)
-        if len(trimmed) > 0 do append(&numbers, trimmed)
-    }
-    
-    str_buffer: [dynamic]u8
-    defer delete(str_buffer)
-    
-    fmt.println(numbers)
+    strings.write_string(&current, input)
     
     for _ in 0..<25 {
-        for i := len(numbers) - 1; i >= 0; i -= 1 {
-            number_str := numbers[i]
-            assert(len(number_str) > 0)
-            
-            for char in number_str do assert(is_digit(char))
-            
+        current_str := transmute(string)current.buf[:]
+    
+        for number_str in strings.split_iterator(&current_str, " ") {
             if all_zeros(number_str) {
-                numbers[i] = "1"
+                strings.write_string(&next, "1 ")
             }
             else if is_even(len(number_str)) {
                 number_1 := number_str[:len(number_str) / 2]
                 number_2 := number_str[len(number_str) / 2:]
-                numbers[i] = number_1
-                inject_at(&numbers, i + 1, number_2)
+                strings.write_string(&next, number_1)
+                strings.write_string(&next, " ")
+                strings.write_string(&next, number_2)
+                strings.write_string(&next, " ")
             }
             else {
                 number := strconv.atoi(number_str)
                 number *= 2024
-                buffer_start := len(str_buffer)
-                for _ in 0..<digit_count(number) do append(&str_buffer, 0)
-                numbers[i] = strconv.itoa(str_buffer[buffer_start:], number)
+                strings.write_int(&next, number)
+                strings.write_string(&next, " ")
             }
         }
         
-        fmt.println(numbers)
+        strings.builder_reset(&current)
+        strings.write_bytes(&current, next.buf[:])
+        strings.builder_reset(&next)
+    }
+    
+    count := 0
+    final_str := transmute(string)current.buf[:]
+    
+    for _ in strings.split_iterator(&final_str, " ") {
+        count += 1
     }
 
-    return len(numbers)
-}
-
-is_digit :: proc(char: rune) -> bool {
-    switch char {
-        case '0'..='9': return true
-        case: return false
-    }
+    return count
 }
 
 all_zeros :: proc(str: string) -> bool {
@@ -112,21 +98,8 @@ all_zeros :: proc(str: string) -> bool {
     return true
 }
 
-digit_count :: proc(number: int) -> int {
-    remainder := number
-    digits := 0
-    for ;remainder > 0; remainder /= 10 {
-        digits += 1
-    }
-    return digits
-}
-
 is_even :: proc(number: int) -> bool {
     return number % 2 == 0
-}
-
-print_progress :: proc(progress: f32) {
-    fmt.printf("  %v%%  \r", int(progress * 100))
 }
 
 deinit_tracking_allocator :: proc(track: ^mem.Tracking_Allocator) {
