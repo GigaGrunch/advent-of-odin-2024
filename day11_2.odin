@@ -46,37 +46,60 @@ main :: proc() {
 }
 
 execute :: proc(input: string, total_iterations: int) -> int {
-    numbers: [dynamic]int
+    numbers: map[int]int
     defer delete(numbers)
     
-    _input := input
-    for number_str in strings.split_iterator(&_input, " ") {
-        append(&numbers, strconv.atoi(number_str))
+    number_split := strings.split(input, " ")
+    defer delete(number_split)
+    
+    for number_str in number_split {
+        number := strconv.atoi(number_str)
+        count := numbers[number]
+        numbers[number] = count + 1
     }
     
     str_buf: [100]u8
     
+    next_numbers: map[int]int
+    defer delete(next_numbers)
+    
     for iteration in 0..<total_iterations {
-        for i := len(numbers) - 1; i >= 0; i -= 1 {
-            number := numbers[i]
-            num_str := strconv.itoa(str_buf[:], number)
+        defer {
+            clear(&numbers)
+            for number in next_numbers do numbers[number] = next_numbers[number]
+            clear(&next_numbers)
+        }
+    
+        for old_number, old_count in numbers {
+            num_str := strconv.itoa(str_buf[:], old_number)
+            new_nums := []int { -1, -1 }
             
-            if number == 0 {
-                numbers[i] = 1
+            if old_number == 0 {
+                new_nums[0] = 1
             }
             else if len(num_str) % 2 == 0 {
-                numbers[i] = strconv.atoi(num_str[:len(num_str) / 2])
-                append(&numbers, strconv.atoi(num_str[len(num_str) / 2:]))
+                new_nums[0] = strconv.atoi(num_str[:len(num_str) / 2])
+                new_nums[1] = strconv.atoi(num_str[len(num_str) / 2:])
             }
             else {
-                numbers[i] *= 2024
+                new_nums[0] = old_number * 2024
+            }
+            
+            for num in new_nums {
+                if num != -1 {
+                    new_count := next_numbers[num]
+                    next_numbers[num] = new_count + old_count
+                }
             }
         }
         
         fmt.printf("  %v/%v  \r", iteration, total_iterations)
     }
     
-    return len(numbers)
+    total_count := 0
+    for number, count in numbers do total_count += count
+    
+    return total_count
 }
 
 deinit_tracking_allocator :: proc(track: ^mem.Tracking_Allocator) {
