@@ -45,56 +45,38 @@ main :: proc() {
     }
 }
 
-execute :: proc(input: string, iterations: int) -> int {
-    current := strings.builder_make()
-    defer strings.builder_destroy(&current)
+execute :: proc(input: string, total_iterations: int) -> int {
+    numbers: [dynamic]int
+    defer delete(numbers)
     
-    next := strings.builder_make()
-    defer strings.builder_destroy(&next)
+    _input := input
+    for number_str in strings.split_iterator(&_input, " ") {
+        append(&numbers, strconv.atoi(number_str))
+    }
     
-    strings.write_string(&current, input)
+    str_buf: [100]u8
     
-    for iteration in 0..<iterations {
-        current_str := transmute(string)current.buf[:]
-    
-        for number_str in strings.split_iterator(&current_str, " ") {
-            if len(number_str) == 1 && number_str[0] == '0' {
-                strings.write_string(&next, "1 ")
+    for iteration in 0..<total_iterations {
+        for i := len(numbers) - 1; i >= 0; i -= 1 {
+            number := numbers[i]
+            num_str := strconv.itoa(str_buf[:], number)
+            
+            if number == 0 {
+                numbers[i] = 1
             }
-            else if len(number_str) % 2 == 0 {
-                number_1 := number_str[:len(number_str) / 2]
-                trimmed_1 := strings.trim_left(number_1, "0")
-                strings.write_string(&next, trimmed_1 if len(trimmed_1) > 0 else "0")
-                strings.write_string(&next, " ")
-                
-                number_2 := number_str[len(number_str) / 2:]
-                trimmed_2 := strings.trim_left(number_2, "0")
-                strings.write_string(&next, trimmed_2 if len(trimmed_2) > 0 else "0")
-                strings.write_string(&next, " ")
+            else if len(num_str) % 2 == 0 {
+                numbers[i] = strconv.atoi(num_str[:len(num_str) / 2])
+                append(&numbers, strconv.atoi(num_str[len(num_str) / 2:]))
             }
             else {
-                number := strconv.atoi(number_str)
-                number *= 2024
-                strings.write_int(&next, number)
-                strings.write_string(&next, " ")
+                numbers[i] *= 2024
             }
         }
         
-        strings.builder_reset(&current)
-        strings.write_bytes(&current, next.buf[:])
-        strings.builder_reset(&next)
-        
-        fmt.printf("  iteration %v/%v\r", iteration, iterations)
+        fmt.printf("  %v/%v  \r", iteration, total_iterations)
     }
     
-    count := 0
-    final_str := transmute(string)current.buf[:]
-    
-    for _ in strings.split_iterator(&final_str, " ") {
-        count += 1
-    }
-
-    return count
+    return len(numbers)
 }
 
 deinit_tracking_allocator :: proc(track: ^mem.Tracking_Allocator) {
