@@ -55,6 +55,7 @@ execute :: proc(input: string) -> int {
         }
         
         region_area := 0
+        region_perimeter := 0
         
         for len(frontier) > 0 {
             pos := pop(&frontier)
@@ -72,11 +73,13 @@ execute :: proc(input: string) -> int {
                         neighbor_visited^ = true
                         append(&frontier, neighbor)
                     }
+                } else {
+                    region_perimeter += 1
                 }
             }
         }
         
-        fmt.printfln("region with %c has area %v", region_plant, region_area)
+        fmt.printfln("region with %c has area %v and perimeter %v", region_plant, region_area, region_perimeter)
     }
 
     return 0
