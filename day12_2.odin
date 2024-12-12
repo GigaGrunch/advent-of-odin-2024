@@ -5,15 +5,17 @@ import "core:strings"
 import "core:strconv"
 import "core:mem"
 import "core:os"
+import "core:sort"
 import "core:testing"
+import "core:slice"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
     { "day12_test1.txt", 80 },
-    // { "day12_test2.txt", 436 },
-    // { "day12_test4.txt", 236 },
-    // { "day12_test5.txt", 368 },
-    // { "day12_test3.txt", 1206 },
-    // { "day12_input.txt", nil },
+    { "day12_test2.txt", 436 },
+    { "day12_test4.txt", 236 },
+    { "day12_test5.txt", 368 },
+    { "day12_test3.txt", 1206 },
+    { "day12_input.txt", nil },
 }
 
 Plot_Map :: struct {
@@ -27,11 +29,15 @@ Vec :: [2]int
 
 Fence_Side :: enum { top, bottom, left, right }
 
+Fence_Piece :: struct {
+    side: Fence_Side,
+    using pos: Vec,
+}
+
 Region_Edge :: struct {
     side: Fence_Side,
     start: Vec,
     end: Vec,
-    positions: [dynamic]Vec,
 }
 
 execute :: proc(input: string) -> int {
@@ -51,8 +57,6 @@ execute :: proc(input: string) -> int {
     
     total_cost := 0
     
-    print(plot_map)
-    
     for has_unvisited(plot_map.visited) {
         region_plant: u8
         frontier: [dynamic]Vec
@@ -68,11 +72,8 @@ execute :: proc(input: string) -> int {
         }
         
         region_area := 0
-        region_edges: [dynamic]Region_Edge
-        defer {
-            for edge in region_edges do delete(edge.positions)
-            delete(region_edges)
-        }
+        region_fence_piece_set: map[Fence_Piece]u8
+        defer delete(region_fence_piece_set)
         
         for len(frontier) > 0 {
             pos := pop(&frontier)
@@ -91,70 +92,87 @@ execute :: proc(input: string) -> int {
                         append(&frontier, neighbor)
                     }
                 } else {
-                    fence_side: Fence_Side
+                    fence_piece: Fence_Piece
+                    fence_piece.pos = pos
                     switch neighbor.x {
-                    case pos.x - 1: fence_side = .left
-                    case pos.x + 1: fence_side = .right
+                    case pos.x - 1: fence_piece.side = .left
+                    case pos.x + 1: fence_piece.side = .right
                     }
                     switch neighbor.y {
-                    case pos.y - 1: fence_side = .top
-                    case pos.y + 1: fence_side = .bottom
+                    case pos.y - 1: fence_piece.side = .top
+                    case pos.y + 1: fence_piece.side = .bottom
                     }
-                    
-                    edge_index := 0
-                    outer: for ;edge_index < len(region_edges); edge_index += 1 {
-                        edge := &region_edges[edge_index]
-                        if edge.side != fence_side do continue
-                        
-                        for other in edge.positions {
-                            if other == pos do break outer
-                        }
-                        
-                        if fence_side == .top || fence_side == .bottom {
-                            if edge.start.y != pos.y do continue
-                            if edge.start.x - 1 == pos.x {
-                                edge.start.x = pos.x
-                                append(&edge.positions, pos)
-                                break outer
-                            }
-                            if edge.end.x + 1 == pos.x {
-                                edge.end.x = pos.x
-                                append(&edge.positions, pos)
-                                break outer
-                            }
-                        } else {
-                            if edge.start.x != pos.x do continue
-                            if edge.start.y - 1 == pos.y {
-                                edge.start.y = pos.y
-                                append(&edge.positions, pos)
-                                break outer
-                            }
-                            if edge.end.y + 1 == pos.y {
-                                edge.end.y = pos.y
-                                append(&edge.positions, pos)
-                                break outer
-                            }
-                        }
-                    }
-                    if edge_index == len(region_edges) {
-                        edge := Region_Edge{
-                            side = fence_side,
-                            start = pos,
-                            end = pos,
-                        }
-                        append(&edge.positions, pos)
-                        append(&region_edges, edge)
-                    }
+                    region_fence_piece_set[fence_piece] = 1
                 }
             }
         }
         
-        fmt.printf("%c  ", region_plant)
-        for edge in region_edges {
-            using edge
-            fmt.printf("(%v,%v) -%v-> (%v,%v)  ", start.x, start.y, side, end.x, end.y)
+        region_fence_pieces: [dynamic]Fence_Piece
+        defer delete(region_fence_pieces)
+        
+        for piece in region_fence_piece_set do append(&region_fence_pieces, piece)
+        
+        fence_piece_sort_len :: proc(it: sort.Interface) -> int {
+            pieces := cast(^[dynamic]Fence_Piece)it.collection
+            return len(pieces^)
         }
-        fmt.println()
+        
+        fence_piece_sort_less :: proc(it: sort.Interface, i, j: int) -> bool {
+            pieces := cast(^[dynamic]Fence_Piece)it.collection
+            if pieces[i].y < pieces[j].y do return true
+            if pieces[i].y > pieces[j].y do return false
+            return pieces[i].x < pieces[j].x
+        }
+        
+        fence_piece_sort_swap :: proc(it: sort.Interface, i, j: int) {
+            pieces := cast(^[dynamic]Fence_Piece)it.collection
+            slice.swap(pieces^[:], i, j)
+        }
+        
+        sort.sort(sort.Interface {
+            collection = &region_fence_pieces,
+            len = fence_piece_sort_len,
+            less = fence_piece_sort_less,
+            swap = fence_piece_sort_swap,
+        })
+        
+        region_edges: [dynamic]Region_Edge
+        defer delete(region_edges)
+        
+        piece_loop: for piece in region_fence_pieces {
+            for &edge in region_edges {
+                if piece.side != edge.side do continue
+                
+                if piece.side == .top || piece.side == .bottom {
+                    if edge.start.y != piece.y do continue
+                    
+                    if edge.start.x - 1 == piece.x {
+                        edge.start.x = piece.x
+                        continue piece_loop
+                    }
+                    if edge.end.x + 1 == piece.x {
+                        edge.end.x = piece.x
+                        continue piece_loop
+                    }
+                } else {
+                    if edge.start.x != piece.x do continue
+                    
+                    if edge.start.y - 1 == piece.y {
+                        edge.start.y = piece.y
+                        continue piece_loop
+                    }
+                    if edge.end.y + 1 == piece.y {
+                        edge.end.y = piece.y
+                        continue piece_loop
+                    }
+                }
+            }
+            append(&region_edges, Region_Edge {
+                side = piece.side,
+                start = piece.pos,
+                end = piece.pos,
+            })
+        }
         
         region_cost := region_area * len(region_edges)
         total_cost += region_cost
