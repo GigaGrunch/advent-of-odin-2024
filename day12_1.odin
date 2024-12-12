@@ -11,7 +11,7 @@ runners := []struct{file_path: string, expected_result: Maybe(int)} {
     { "day12_test1.txt", 140 },
     { "day12_test2.txt", 772 },
     { "day12_test3.txt", 1930 },
-    // { "day12_input.txt", nil },
+    { "day12_input.txt", nil },
 }
 
 Plot_Map :: struct {
@@ -38,7 +38,7 @@ execute :: proc(input: string) -> int {
     plot_map.visited = make([]b8, len(plot_map.plants))
     defer delete(plot_map.visited)
     
-    print(plot_map)
+    total_cost := 0
     
     for has_unvisited(plot_map.visited) {
         region_plant: u8
@@ -79,10 +79,11 @@ execute :: proc(input: string) -> int {
             }
         }
         
-        fmt.printfln("region with %c has area %v and perimeter %v", region_plant, region_area, region_perimeter)
+        region_cost := region_area * region_perimeter
+        total_cost += region_cost
     }
 
-    return 0
+    return total_cost
 }
 
 print :: proc(using plot_map: Plot_Map) {
