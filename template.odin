@@ -11,6 +11,10 @@ runners := []struct{file_path: string, expected_result: Maybe(int)} {
 
 }
 
+execute :: proc(input: string) -> int {
+    return 0
+}
+
 main :: proc() {
     error_count := 0
     defer {
@@ -41,10 +45,6 @@ main :: proc() {
         }
         fmt.println()
     }
-}
-
-execute :: proc(input: string) -> int {
-    return 0
 }
 
 deinit_tracking_allocator :: proc(track: ^mem.Tracking_Allocator) {
