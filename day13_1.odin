@@ -47,11 +47,12 @@ execute :: proc(input: string) -> int {
             count = 0
             remaining_prize := prize
             for remaining_prize % other_button != 0 {
-                if count > 100 do return 0, 0
                 remaining_prize -= button
                 count += 1
+                if count > 100 do return 0, 0
             }
             other_count = (remaining_prize / other_button)[0]
+            if other_count > 100 do return 0, 0
             return
         }
         
@@ -66,8 +67,9 @@ execute :: proc(input: string) -> int {
             b_first_cost = a_count * 3 + b_count
         }
         
-        token_cost := min(a_first_cost, b_first_cost)
-        total_cost += token_cost
+        if a_first_cost == 0 do total_cost += b_first_cost
+        else if b_first_cost == 0 do total_cost += a_first_cost
+        else do total_cost += min(a_first_cost, b_first_cost)
     }
 
     return total_cost
