@@ -43,17 +43,18 @@ execute :: proc(input: string) -> int {
             else do panic(line)
         }
         
-        calculate_count :: proc(button, other_button, prize: [2]int) -> (count: int, other_count: int) {
-            count = 0
+        calculate_count :: proc(button, other_button, prize: [2]int) -> (count, other_count: int) {
             remaining_prize := prize
-            for remaining_prize % other_button != 0 {
+            for count = 1; count <= 100; count += 1 {
                 remaining_prize -= button
-                count += 1
-                if count > 100 do return 0, 0
+                other_count_vec := remaining_prize / other_button
+                other_count = other_count_vec[0]
+                if other_count > 100 do continue
+                if remaining_prize % other_button != 0 do continue
+                if other_count_vec[0] != other_count_vec[1] do continue
+                return
             }
-            other_count = (remaining_prize / other_button)[0]
-            if other_count > 100 do return 0, 0
-            return
+            return 0, 0
         }
         
         a_first_cost := 0
