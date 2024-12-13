@@ -6,6 +6,7 @@ import "core:strconv"
 import "core:mem"
 import "core:os"
 import "core:testing"
+import "core:math"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
     { "day13_test.txt", nil },
@@ -43,21 +44,26 @@ execute :: proc(input: string) -> int {
             else do panic(line)
         }
         
-        // prize += 10000000000000
+        prize += 10000000000000
         
         calculate_count :: proc(button, other_button, prize: [2]int) -> (count, other_count: int) {
-            remaining_prize := prize
-            for count = 1;; count += 1 {
-                remaining_prize -= button
-                other_count_vec := remaining_prize / other_button
-                other_count = other_count_vec[0]
-                if remaining_prize[0] < 0 || remaining_prize[1] < 0 do break
-                if other_count > 100 do continue
-                if remaining_prize % other_button != 0 do continue
-                if other_count_vec[0] != other_count_vec[1] do continue
-                return
-            }
-            return 0, 0
+            target := [2]f64 { f64(prize.x), f64(prize.y) }
+            a_offset := f64(0)
+            a_ratio := f64(button.y) / f64(button.x)
+            b_ratio := f64(other_button.y) / f64(other_button.x)
+            b_offset := target.y - b_ratio * target.x
+            intersection: [2]f64
+            intersection.x = b_offset / (a_ratio - b_ratio)
+            intersection.y = b_offset + b_ratio * intersection.x
+            
+            a_length := intersection - a_offset
+            b_length := target - intersection
+            
+            count = int(math.round(a_length.x)) / button.x
+            other_count = int(math.round(b_length.x)) / other_button.x
+            if count < 0 || other_count < 0 do return 0, 0
+            if count * button + other_count * other_button != prize do return 0, 0
+            return
         }
         
         a_first_cost := 0
