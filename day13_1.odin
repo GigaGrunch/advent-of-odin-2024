@@ -9,10 +9,12 @@ import "core:testing"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
     { "day13_test.txt", 480 },
-    // { "day13_input.txt", nil },
+    { "day13_input.txt", nil },
 }
 
 execute :: proc(input: string) -> int {
+    total_cost := 0
+
     input_it_str := input
     for block in strings.split_iterator(&input_it_str, "\n\n") {
         button_a: [2]int
@@ -41,10 +43,34 @@ execute :: proc(input: string) -> int {
             else do panic(line)
         }
         
-        fmt.printfln("A: %v, B: %v, P: %v", button_a, button_b, prize)
+        calculate_count :: proc(button, other_button, prize: [2]int) -> (count: int, other_count: int) {
+            count = 0
+            remaining_prize := prize
+            for remaining_prize % other_button != 0 {
+                if count > 100 do return 0, 0
+                remaining_prize -= button
+                count += 1
+            }
+            other_count = (remaining_prize / other_button)[0]
+            return
+        }
+        
+        a_first_cost := 0
+        {
+            a_count, b_count := calculate_count(button_a, button_b, prize)
+            a_first_cost = a_count * 3 + b_count
+        }
+        b_first_cost := 0
+        {
+            b_count, a_count := calculate_count(button_b, button_a, prize)
+            b_first_cost = a_count * 3 + b_count
+        }
+        
+        token_cost := min(a_first_cost, b_first_cost)
+        total_cost += token_cost
     }
 
-    return 0
+    return total_cost
 }
 
 main :: proc() {
