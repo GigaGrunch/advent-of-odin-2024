@@ -90,15 +90,31 @@ execute :: proc(input: string, map_dimensions: [2]int) -> int {
             break
         }
     }
+    
+    positions = start_positions
+    for _ in 1..=min_no_neighbors_i {
+        positions = (positions + velocities + map_dimensions_array) % map_dimensions_array
+    }
+    print(positions, bot_count, map_dimensions)
 
     return min_no_neighbors_i
 }
 
-print :: proc(positions: [2][ARRAY_LENGTH]int, len: int) {
-    for i in 0..<len {
-        fmt.printf("(%v,%v) ", positions.x[i], positions.y[i])
+print :: proc(positions: [2][ARRAY_LENGTH]int, bot_count: int, map_dimensions: [2]int) {
+    for y in 0..<map_dimensions.y {
+        horizontal: for x in 0..<map_dimensions.x {
+            pos := [2]int { x, y }
+            for i in 0..<bot_count {
+                bot_pos := [2]int { positions.x[i], positions.y[i] }
+                if pos == bot_pos {
+                    fmt.print("O")
+                    continue horizontal
+                }
+            }
+            fmt.print(".")
+        }
+        fmt.println()
     }
-    fmt.println()
 }
 
 main :: proc() {
