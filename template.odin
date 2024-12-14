@@ -6,6 +6,7 @@ import "core:strconv"
 import "core:mem"
 import "core:os"
 import "core:testing"
+import "core:slice"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
 
