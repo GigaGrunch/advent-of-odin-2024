@@ -16,10 +16,16 @@ Warehouse :: struct {
     data: [dynamic]u8,
     width, height: int,
 }
+UP := Vec{0, -1}
+DOWN := Vec{0, 1}
+LEFT := Vec{-1, 0}
+RIGHT := Vec{1, 0}
 
 execute :: proc(input: string) -> int {
     warehouse: Warehouse
     defer delete(warehouse.data)
+    
+    robo_pos: Vec
     
     lines_it := input
     for line in strings.split_lines_iterator(&lines_it) {
@@ -32,33 +38,90 @@ execute :: proc(input: string) -> int {
         append(&warehouse.data, ..transmute([]u8)line)
     }
     
+    for y in 0..<warehouse.height do for x in 0..<warehouse.width {
+        pos := Vec{x, y}
+        if warehouse_at(&warehouse, pos)^ == '@' do robo_pos = Vec{x, y}
+    }
+    
     moves: [dynamic]Vec
     defer delete(moves)
     
-    up := Vec{0, -1}
-    down := Vec{0, 1}
-    left := Vec{-1, 0}
-    right := Vec{1, 0}
-    
     for char in transmute([]u8)lines_it {
         switch char {
-        case '^': append(&moves, up)
-        case 'v': append(&moves, down)
-        case '<': append(&moves, left)
-        case '>': append(&moves, right)
+        case '^': append(&moves, UP)
+        case 'v': append(&moves, DOWN)
+        case '<': append(&moves, LEFT)
+        case '>': append(&moves, RIGHT)
         }
     }
     
-    print(warehouse)
-    fmt.println(moves)
+    moves_print(moves[:])
+    warehouse_print(warehouse)
+    
+    for move in moves {
+        fmt.println()
+        move_print(move)
+        fmt.println()
+        
+        pos := robo_pos
+        loop: for ;;pos += move {
+            switch warehouse_at(warehouse, pos) {
+            case '@', 'O': continue loop
+            case '.', '#': break loop
+            case: panic("Unexpected character")
+            }
+        }
+        
+        move_is_valid := warehouse_at(warehouse, pos) != '#'
+        if move_is_valid {
+            for ;pos != robo_pos; pos -= move {
+                here := warehouse_at(&warehouse, pos)
+                there := warehouse_at(&warehouse, pos - move)
+                assert(here^ == '.')
+                here^ = there^
+                there^ = '.'
+            }
+            robo_pos += move
+        }
+        
+        warehouse_print(warehouse)
+    }
 
     return 0
 }
 
-print :: proc(warehouse: Warehouse) {
-    for y in 0..<warehouse.height do for x in 0..<warehouse.width {
-        fmt.printf("%c", warehouse.data[y * warehouse.width + x])
-        if (x + 1) % warehouse.width == 0 do fmt.println()
+warehouse_at :: proc{warehouse_at_val, warehouse_at_ptr}
+
+warehouse_at_val :: proc(using warehouse: Warehouse, pos: Vec) -> u8 {
+    return data[pos.y * width + pos.x]
+}
+
+warehouse_at_ptr :: proc(using warehouse: ^Warehouse, pos: Vec) -> ^u8 {
+    return &data[pos.y * width + pos.x]
+}
+
+warehouse_print :: proc(using warehouse: Warehouse) {
+    for y in 0..<height do for x in 0..<width {
+        fmt.printf("%c", data[y * width + x])
+        if (x + 1) % width == 0 do fmt.println()
+    }
+}
+
+moves_print :: proc(moves: []Vec) {
+    for move in moves {
+        move_print(move)
+        fmt.print(" ")
+    }
+    fmt.println()
+}
+
+move_print :: proc(move: Vec) {
+    switch move {
+    case UP: fmt.print("up")
+    case DOWN: fmt.print("down")
+    case LEFT: fmt.print("left")
+    case RIGHT: fmt.print("right")
+    case: panic(fmt.tprint(move))
     }
 }
 
