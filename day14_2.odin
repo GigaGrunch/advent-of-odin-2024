@@ -8,17 +8,17 @@ import "core:os"
 import "core:testing"
 import "core:slice"
 
-runners := []struct{file_path: string, map_dimensions: [2]int, expected_result: Maybe(int)} {
-    { "day14_test.txt", [2]int { 11, 7 }, nil },
-    { "day14_input.txt", [2]int { 101, 103 }, nil },
+runners := []struct{file_path: string, map_dimensions: Vec, expected_result: Maybe(int)} {
+    { "day14_input.txt", Vec{101, 103}, nil },
 }
 
+Vec :: [2]int
 ARRAY_LENGTH :: 500
 
-execute :: proc(input: string, map_dimensions: [2]int) -> int {
+execute :: proc(input: string, map_dimensions: Vec) -> int {
     bot_count := 0
-    start_positions: [2][ARRAY_LENGTH]int
-    velocities: [2][ARRAY_LENGTH]int
+    start_positions: [ARRAY_LENGTH]Vec
+    velocities: [ARRAY_LENGTH]Vec
     
     line_it := input
     for line in strings.split_lines_iterator(&line_it) {
@@ -30,12 +30,8 @@ execute :: proc(input: string, map_dimensions: [2]int) -> int {
             x := strconv.atoi(x_str)
             y := strconv.atoi(y_str)
             switch value_str[0] {
-            case 'p':
-                start_positions.x[bot_count] = x
-                start_positions.y[bot_count] = y
-            case 'v':
-                velocities.x[bot_count] = x
-                velocities.y[bot_count] = y
+            case 'p': start_positions[bot_count] = Vec{x, y}
+            case 'v': velocities[bot_count] = Vec{x, y}
             case: panic(line)
             }
         }
@@ -45,16 +41,15 @@ execute :: proc(input: string, map_dimensions: [2]int) -> int {
     
     positions := start_positions
     
-    map_dimensions_array: [2][ARRAY_LENGTH]int
-    slice.fill(map_dimensions_array.x[:], map_dimensions.x)
-    slice.fill(map_dimensions_array.y[:], map_dimensions.y)
+    map_dimensions_array: [ARRAY_LENGTH]Vec
+    slice.fill(map_dimensions_array[:], map_dimensions)
     
     middle_pos := map_dimensions / 2
     
-    up := [2]int { 0, -1 }
-    down := [2]int { 0, 1 }
-    left := [2]int { -1, 0 }
-    right := [2]int { 1, 0 }
+    up := Vec{0, -1}
+    down := Vec{0, 1}
+    left := Vec{-1, 0}
+    right := Vec{1, 0}
     
     min_no_neighbors := max(int)
     min_no_neighbors_i: int
@@ -63,16 +58,14 @@ execute :: proc(input: string, map_dimensions: [2]int) -> int {
         positions = (positions + velocities + map_dimensions_array) % map_dimensions_array
         
         no_neighbor_count := 0
-        outer: for i in 0..<bot_count {
-            pos := [2]int { positions.x[i], positions.y[i] }
-            neighbors := [4][2]int {
+        outer: for pos in positions[:bot_count] {
+            neighbors := [4]Vec {
                 (pos + up + map_dimensions) % map_dimensions,
                 (pos + down + map_dimensions) % map_dimensions,
                 (pos + left + map_dimensions) % map_dimensions,
                 (pos + right + map_dimensions) % map_dimensions,
             }
-            for j in 0..<bot_count {
-                other := [2]int { positions.x[j], positions.y[j] }
+            for other in positions[:bot_count] {
                 for neighbor in neighbors {
                     if neighbor == other do continue outer
                 }
@@ -95,17 +88,16 @@ execute :: proc(input: string, map_dimensions: [2]int) -> int {
     for _ in 1..=min_no_neighbors_i {
         positions = (positions + velocities + map_dimensions_array) % map_dimensions_array
     }
-    print(positions, bot_count, map_dimensions)
+    print(positions[:bot_count], map_dimensions)
 
     return min_no_neighbors_i
 }
 
-print :: proc(positions: [2][ARRAY_LENGTH]int, bot_count: int, map_dimensions: [2]int) {
+print :: proc(positions: []Vec, map_dimensions: Vec) {
     for y in 0..<map_dimensions.y {
         horizontal: for x in 0..<map_dimensions.x {
-            pos := [2]int { x, y }
-            for i in 0..<bot_count {
-                bot_pos := [2]int { positions.x[i], positions.y[i] }
+            pos := Vec{x, y}
+            for bot_pos in positions {
                 if pos == bot_pos {
                     fmt.print("O")
                     continue horizontal
