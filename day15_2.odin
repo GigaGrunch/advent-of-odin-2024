@@ -25,8 +25,6 @@ execute :: proc(input: string) -> int {
     warehouse: Warehouse
     defer delete(warehouse.data)
     
-    robo_pos: Vec
-    
     lines_it := input
     for line in strings.split_lines_iterator(&lines_it) {
         if len(line) == 0 do break
@@ -51,11 +49,6 @@ execute :: proc(input: string) -> int {
         }
     }
     
-    for y in 0..<warehouse.height do for x in 0..<warehouse.width {
-        pos := Vec{x, y}
-        if warehouse_at(&warehouse, pos)^ == '@' do robo_pos = Vec{x, y}
-    }
-    
     moves: [dynamic]Vec
     defer delete(moves)
     
@@ -69,6 +62,70 @@ execute :: proc(input: string) -> int {
     }
     
     warehouse_print(warehouse)
+    
+    for move in moves {
+        fmt.println()
+        
+        robo_pos: Vec
+        for y in 0..<warehouse.height do for x in 0..<warehouse.width {
+            pos := Vec{x, y}
+            if warehouse_at(&warehouse, pos)^ == '@' do robo_pos = pos
+        }
+        
+        affected_positions: map[Vec]u8
+        defer delete(affected_positions)
+        
+        frontier: [dynamic]Vec
+        defer delete(frontier)
+        
+        append(&frontier, robo_pos)
+        
+        is_valid_move := true
+        
+        for len(frontier) > 0 && is_valid_move {
+            pos := pop(&frontier)
+            char := warehouse_at(warehouse, pos)
+            switch char {
+            case '@':
+                append(&frontier, pos + move)
+                affected_positions[pos] = 1
+            case '[':
+                append(&frontier, pos + move)
+                affected_positions[pos] = 1
+                if pos + RIGHT not_in affected_positions do append(&frontier, pos + RIGHT)
+            case ']':
+                append(&frontier, pos + move)
+                affected_positions[pos] = 1
+                if pos + LEFT not_in affected_positions do append(&frontier, pos + LEFT)
+            case '#': is_valid_move = false
+            case '.': {}
+            case: panic("unknown char")
+            }
+        }
+        
+        warehouse_copy := Warehouse {
+            width = warehouse.width,
+            height = warehouse.height,
+        }
+        defer delete(warehouse_copy.data)
+        
+        append(&warehouse_copy.data, ..warehouse.data[:])
+        
+        if is_valid_move {
+            for pos in affected_positions {
+                here := warehouse_at(&warehouse, pos)
+                here^ = '.'
+            }
+        
+            for pos in affected_positions {
+                here := warehouse_at(warehouse_copy, pos)
+                there := warehouse_at(&warehouse, pos + move)
+                there^ = here
+            }
+        }
+        
+        warehouse_print(warehouse)
+    }
     
     result := 0
     
