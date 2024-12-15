@@ -7,8 +7,8 @@ import "core:os"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
     { "day15_test3.txt", nil },
-    // { "day15_test2.txt", 9021 },
-    // { "day15_input.txt", nil },
+    { "day15_test2.txt", 9021 },
+    { "day15_input.txt", nil },
 }
 
 Vec :: [2]int
@@ -61,11 +61,7 @@ execute :: proc(input: string) -> int {
         }
     }
     
-    warehouse_print(warehouse)
-    
     for move in moves {
-        fmt.println()
-        
         robo_pos: Vec
         for y in 0..<warehouse.height do for x in 0..<warehouse.width {
             pos := Vec{x, y}
@@ -123,11 +119,17 @@ execute :: proc(input: string) -> int {
                 there^ = here
             }
         }
-        
-        warehouse_print(warehouse)
     }
     
     result := 0
+    
+    for char, i in warehouse.data {
+        if char == '[' {
+            pos := Vec{i % warehouse.width, i / warehouse.width}
+            gps_coordinate := pos.x + 100 * pos.y
+            result += gps_coordinate
+        }
+    }
     
     return result
 }
