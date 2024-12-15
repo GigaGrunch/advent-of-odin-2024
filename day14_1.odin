@@ -8,17 +8,18 @@ import "core:os"
 import "core:testing"
 import "core:slice"
 
-runners := []struct{file_path: string, map_dimensions: [2]int, expected_result: Maybe(int)} {
-    { "day14_test.txt", [2]int { 11, 7 }, 12 },
-    { "day14_input.txt", [2]int { 101, 103 }, nil },
+runners := []struct{file_path: string, map_dimensions: Vec, expected_result: Maybe(int)} {
+    { "day14_test.txt", Vec { 11, 7 }, 12 },
+    { "day14_input.txt", Vec { 101, 103 }, nil },
 }
 
+Vec :: [2]int
 ARRAY_LENGTH :: 500
 
-execute :: proc(input: string, map_dimensions: [2]int) -> int {
+execute :: proc(input: string, map_dimensions: Vec) -> int {
     bot_count := 0
-    positions: [2][ARRAY_LENGTH]int
-    velocities: [2][ARRAY_LENGTH]int
+    positions: [ARRAY_LENGTH]Vec
+    velocities: [ARRAY_LENGTH]Vec
     
     line_it := input
     for line in strings.split_lines_iterator(&line_it) {
@@ -30,12 +31,8 @@ execute :: proc(input: string, map_dimensions: [2]int) -> int {
             x := strconv.atoi(x_str)
             y := strconv.atoi(y_str)
             switch value_str[0] {
-            case 'p':
-                positions.x[bot_count] = x
-                positions.y[bot_count] = y
-            case 'v':
-                velocities.x[bot_count] = x
-                velocities.y[bot_count] = y
+            case 'p': positions[bot_count] = Vec{x, y}
+            case 'v': velocities[bot_count] = Vec{x, y}
             case: panic(line)
             }
         }
@@ -43,27 +40,16 @@ execute :: proc(input: string, map_dimensions: [2]int) -> int {
         bot_count += 1
     }
     
-    positions += velocities * 100
+    map_dimensions_array: [ARRAY_LENGTH][2]int
+    slice.fill(map_dimensions_array[:], map_dimensions)
     
-    min_pos := [2]int { slice.min(positions.x[:]), slice.min(positions.y[:]) }
-    make_positive := map_dimensions + map_dimensions * (-min_pos / map_dimensions)
-    make_positive_array: [2][ARRAY_LENGTH]int
-    slice.fill(make_positive_array.x[:], make_positive.x)
-    slice.fill(make_positive_array.y[:], make_positive.y)
-    positions += make_positive_array
-    
-    map_dimensions_array: [2][ARRAY_LENGTH]int
-    slice.fill(map_dimensions_array.x[:], map_dimensions.x)
-    slice.fill(map_dimensions_array.y[:], map_dimensions.y)
-    positions %= map_dimensions_array
+    positions = (positions + (velocities + map_dimensions_array) * 100) % map_dimensions_array
     
     top_left_bots, top_right_bots, bottom_left_bots, bottom_right_bots: int
     
     middle_pos := map_dimensions / 2
     
-    for i in 0..<bot_count {
-        pos := [2]int { positions.x[i], positions.y[i] }
-    
+    for pos in positions[:bot_count] {
         switch {
         case pos.x < middle_pos.x && pos.y < middle_pos.y: top_left_bots += 1
         case pos.x > middle_pos.x && pos.y < middle_pos.y: top_right_bots += 1
