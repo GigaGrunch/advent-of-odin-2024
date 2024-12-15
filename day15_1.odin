@@ -32,7 +32,25 @@ execute :: proc(input: string) -> int {
         append(&warehouse.data, ..transmute([]u8)line)
     }
     
+    moves: [dynamic]Vec
+    defer delete(moves)
+    
+    up := Vec{0, -1}
+    down := Vec{0, 1}
+    left := Vec{-1, 0}
+    right := Vec{1, 0}
+    
+    for char in transmute([]u8)lines_it {
+        switch char {
+        case '^': append(&moves, up)
+        case 'v': append(&moves, down)
+        case '<': append(&moves, left)
+        case '>': append(&moves, right)
+        }
+    }
+    
     print(warehouse)
+    fmt.println(moves)
 
     return 0
 }
