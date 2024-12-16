@@ -1,18 +1,19 @@
 package main
 
 import "core:fmt"
-import "core:strings"
-import "core:strconv"
 import "core:mem"
 import "core:os"
-import "core:testing"
-import "core:slice"
+import "core:strings"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
 
 }
 
 execute :: proc(input: string) -> int {
+    line_it := input
+    for line in strings.split_lines_iterator(&line_it) {
+        _ = line
+    }
     return 0
 }
 
