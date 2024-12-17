@@ -4,18 +4,58 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 import "core:strings"
+import "core:strconv"
 import "core:testing"
 
 runners := []struct{file_path: string, expected_result: Maybe(string)} {
-
+    { "day17_test.txt", "4,6,3,5,6,3,5,2,1,0" },
+    { "day17_input.txt", nil },
 }
 
 execute :: proc(input: string) -> string {
+    interpreter: Interpreter
+    
+    program: [dynamic]u8
+    defer delete(program)
+
     line_it := input
     for line in strings.split_lines_iterator(&line_it) {
-        _ = line
+        if len(line) == 0 do continue
+    
+        key_value_it := line
+        key := strings.split_iterator(&key_value_it, ": ") or_else panic(line)
+        value := strings.split_iterator(&key_value_it, ": ") or_else panic(line)
+        
+        if strings.has_prefix(key, "Register") {
+            register_value := strconv.atoi(value)
+            switch key[len(key)-1] {
+            case 'A': interpreter.register_a = register_value
+            case 'B': interpreter.register_b = register_value
+            case 'C': interpreter.register_c = register_value
+            case: panic(line)
+            }
+        } else if strings.compare(key, "Program") == 0 {
+            for num_str in strings.split_iterator(&value, ",") {
+                append(&program, u8(strconv.atoi(num_str)))
+            }
+        } else {
+            panic(line)
+        }
     }
-    return ""
+    
+    interpreter.program = program[:]
+    
+    output_str := strings.builder_make()
+    defer strings.builder_destroy(&output_str)
+    
+    for op_code in current_op_code(&interpreter) {
+        operand := current_operand(&interpreter)
+        output := execute_op(&interpreter, op_code, operand)
+        if output != nil do fmt.sbprintf(&output_str, "%v,", output)
+        interpreter.instruction_ptr += 2
+    }
+    
+    return transmute(string)output_str.buf[:len(output_str.buf) - 1]
 }
 
 Interpreter :: struct {
@@ -54,7 +94,7 @@ combo_operand :: proc(using interpreter: ^Interpreter, raw_operand: u8) -> int {
     case 6: return register_c
     case 7: fmt.printfln("Encountered special value %v", raw_operand)
     }
-    panic("Failed to handle combo operand.")
+    panic(fmt.tprintf("Failed to handle combo operand: %v", raw_operand))
 }
 
 execute_op :: proc(using interpreter: ^Interpreter, op_code: Op_Code, operand: u8) -> Maybe(int) {
