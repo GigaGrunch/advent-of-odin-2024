@@ -48,18 +48,38 @@ execute :: proc(input: string) -> string {
     output_str := strings.builder_make()
     defer strings.builder_destroy(&output_str)
     
+    fmt.println(state_print(interpreter.state))
+    
+    for op_code in current_op_code(&interpreter) {
+        operand := current_operand(&interpreter)
+        interpreter.instruction_ptr += 2
+        fmt.printfln("%v(%v)", op_code, operand)
+    }
+    
+    interpreter.instruction_ptr = 0
+    
     for op_code in current_op_code(&interpreter) {
         operand := current_operand(&interpreter)
         output := execute_op(&interpreter, op_code, operand)
         if output != nil do fmt.sbprintf(&output_str, "%v,", output)
         interpreter.instruction_ptr += 2
+        
+        fmt.printfln("%v(%v) -> % 3v, state: %v", op_code, operand, output, state_print(interpreter.state))
     }
     
     return transmute(string)output_str.buf[:len(output_str.buf) - 1]
 }
 
+state_print :: proc(state: Interpreter_State) -> string {
+    return fmt.tprintf("A: % 8v, B: % 8v, C: % 8v, ipc: %v", state.register_a, state.register_b, state.register_c, state.instruction_ptr)
+}
+
 Interpreter :: struct {
     program: []u8,
+    using state: Interpreter_State,
+}
+
+Interpreter_State :: struct {
     register_a: int,
     register_b: int,
     register_c: int,
