@@ -48,14 +48,6 @@ execute :: proc(input: string) -> string {
     output_str := strings.builder_make()
     defer strings.builder_destroy(&output_str)
     
-    fmt.println(state_print(interpreter.state))
-    
-    for op_code in current_op_code(&interpreter) {
-        operand := current_operand(&interpreter)
-        interpreter.instruction_ptr += 2
-        fmt.printfln("%v(%v)", op_code, operand)
-    }
-    
     interpreter.instruction_ptr = 0
     
     for op_code in current_op_code(&interpreter) {
@@ -63,23 +55,13 @@ execute :: proc(input: string) -> string {
         output := execute_op(&interpreter, op_code, operand)
         if output != nil do fmt.sbprintf(&output_str, "%v,", output)
         interpreter.instruction_ptr += 2
-        
-        fmt.printfln("%v(%v) -> % 3v, state: %v", op_code, operand, output, state_print(interpreter.state))
     }
     
     return transmute(string)output_str.buf[:len(output_str.buf) - 1]
 }
 
-state_print :: proc(state: Interpreter_State) -> string {
-    return fmt.tprintf("A: % 8v, B: % 8v, C: % 8v, ipc: %v", state.register_a, state.register_b, state.register_c, state.instruction_ptr)
-}
-
 Interpreter :: struct {
     program: []u8,
-    using state: Interpreter_State,
-}
-
-Interpreter_State :: struct {
     register_a: int,
     register_b: int,
     register_c: int,
@@ -119,9 +101,9 @@ combo_operand :: proc(using interpreter: ^Interpreter, raw_operand: u8) -> int {
 
 execute_op :: proc(using interpreter: ^Interpreter, op_code: Op_Code, operand: u8) -> Maybe(int) {
     switch op_code {
-    case .adv: register_a = register_a >> operand
-    case .bdv: register_b = register_a >> operand
-    case .cdv: register_c = register_a >> operand
+    case .adv: register_a = register_a >> uint(combo_operand(interpreter, operand))
+    case .bdv: register_b = register_a >> uint(combo_operand(interpreter, operand))
+    case .cdv: register_c = register_a >> uint(combo_operand(interpreter, operand))
     case .bxl: register_b ~= int(operand)
     case .bst: register_b = combo_operand(interpreter, operand) % 8
     case .jnz: if register_a != 0 do instruction_ptr = int(operand) - 2
@@ -135,16 +117,17 @@ execute_op :: proc(using interpreter: ^Interpreter, op_code: Op_Code, operand: u
 test_interpreter :: proc(t: ^testing.T) {
     interpreter := Interpreter {
         program = []u8 {
-            0, 2, // adv
+            0, 2, // adv with literal 2
+            0, 4, // adv with register_a
             1, 0b1101, // bxl
             2, 3, // bst with literal 3
             2, 5, // bst with register_b
-            3, 8, // jnz (jump to self)
+            3, 10, // jnz (jump to self)
             4, 0, // bxc
             5, 2, // out with literal 2
             5, 6, // out with register_c
-            6, 4, // bdv
-            7, 6, // cdv
+            6, 5, // bdv with register_b
+            7, 6, // cdv with register_c
         },
     }
     
@@ -163,6 +146,10 @@ test_interpreter :: proc(t: ^testing.T) {
     test_next_op(t, &interpreter, .adv, 2, nil)
     testing.expect_value(t, interpreter.register_a, 2)
     
+    interpreter.register_a = 50
+    test_next_op(t, &interpreter, .adv, 4, nil)
+    testing.expect_value(t, interpreter.register_a, 0)
+    
     interpreter.register_b = 0b1010
     test_next_op(t, &interpreter, .bxl, 0b1101, nil)
     testing.expect_value(t, interpreter.register_b, 0b0111)
@@ -175,10 +162,10 @@ test_interpreter :: proc(t: ^testing.T) {
     testing.expect_value(t, interpreter.register_b, 2)
     
     interpreter.register_a = 1
-    test_next_op(t, &interpreter, .jnz, 8, nil)
+    test_next_op(t, &interpreter, .jnz, 10, nil)
     
     interpreter.register_a = 0
-    test_next_op(t, &interpreter, .jnz, 8, nil)
+    test_next_op(t, &interpreter, .jnz, 10, nil)
     
     interpreter.register_b = 0b0110
     interpreter.register_c = 0b1011
@@ -191,10 +178,12 @@ test_interpreter :: proc(t: ^testing.T) {
     test_next_op(t, &interpreter, .out, 6, 4)
     
     interpreter.register_a = 17
-    test_next_op(t, &interpreter, .bdv, 4, nil)
+    interpreter.register_b = 4
+    test_next_op(t, &interpreter, .bdv, 5, nil)
     testing.expect_value(t, interpreter.register_b, 1)
     
     interpreter.register_a = 64001
+    interpreter.register_c = 6
     test_next_op(t, &interpreter, .cdv, 6, nil)
     testing.expect_value(t, interpreter.register_c, 1000)
     
