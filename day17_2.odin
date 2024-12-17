@@ -6,13 +6,14 @@ import "core:os"
 import "core:strings"
 import "core:strconv"
 import "core:testing"
+import "core:slice"
 
-runners := []struct{file_path: string, expected_result: Maybe(string)} {
-    { "day17_test1.txt", "4,6,3,5,6,3,5,2,1,0" },
-    { "day17_input.txt", nil },
+runners := []struct{file_path: string, expected_result: Maybe(int)} {
+    { "day17_test2.txt", 117440 },
+    // { "day17_input.txt", nil },
 }
 
-execute :: proc(input: string) -> string {
+execute :: proc(input: string) -> int {
     interpreter: Interpreter
     
     program: [dynamic]u8
@@ -45,19 +46,25 @@ execute :: proc(input: string) -> string {
     
     interpreter.program = program[:]
     
-    output_str := strings.builder_make()
-    defer strings.builder_destroy(&output_str)
+    output_values: [dynamic]u8
+    defer delete(output_values)
     
-    interpreter.instruction_ptr = 0
-    
-    for op_code in current_op_code(&interpreter) {
-        operand := current_operand(&interpreter)
-        output := execute_op(&interpreter, op_code, operand)
-        if output != nil do fmt.sbprintf(&output_str, "%v,", output)
-        interpreter.instruction_ptr += 2
+    register_a := 0
+    for {
+        clear(&output_values)
+        interpreter.instruction_ptr = 0
+        interpreter.register_a = register_a
+        for op_code in current_op_code(&interpreter) {
+            operand := current_operand(&interpreter)
+            output := execute_op(&interpreter, op_code, operand)
+            if output != nil do append(&output_values, output.?)
+            interpreter.instruction_ptr += 2
+        }
+        
+        if slice.equal(interpreter.program, output_values[:]) do break
+        else do register_a += 1
     }
-    
-    return transmute(string)output_str.buf[:len(output_str.buf) - 1]
+    return register_a
 }
 
 Interpreter :: struct {
@@ -99,7 +106,7 @@ combo_operand :: proc(using interpreter: ^Interpreter, raw_operand: u8) -> int {
     panic(fmt.tprintf("Failed to handle combo operand: %v", raw_operand))
 }
 
-execute_op :: proc(using interpreter: ^Interpreter, op_code: Op_Code, operand: u8) -> Maybe(int) {
+execute_op :: proc(using interpreter: ^Interpreter, op_code: Op_Code, operand: u8) -> Maybe(u8) {
     switch op_code {
     case .adv: register_a = register_a >> uint(combo_operand(interpreter, operand))
     case .bdv: register_b = register_a >> uint(combo_operand(interpreter, operand))
@@ -108,7 +115,7 @@ execute_op :: proc(using interpreter: ^Interpreter, op_code: Op_Code, operand: u
     case .bst: register_b = combo_operand(interpreter, operand) % 8
     case .jnz: if register_a != 0 do instruction_ptr = int(operand) - 2
     case .bxc: register_b ~= register_c
-    case .out: return combo_operand(interpreter, operand) % 8
+    case .out: return u8(combo_operand(interpreter, operand) % 8)
     }
     return nil
 }
@@ -131,7 +138,7 @@ test_interpreter :: proc(t: ^testing.T) {
         },
     }
     
-    test_next_op :: proc(t: ^testing.T, interpreter: ^Interpreter, expected_op: Op_Code, expected_operand: u8, expected_output: Maybe(int)) {
+    test_next_op :: proc(t: ^testing.T, interpreter: ^Interpreter, expected_op: Op_Code, expected_operand: u8, expected_output: Maybe(u8)) {
         op_code, still_running := current_op_code(interpreter)
         testing.expect(t, still_running)
         testing.expect_value(t, op_code, expected_op)
@@ -217,7 +224,7 @@ main :: proc() {
         expected_result, has_expected_result := runner.expected_result.?
         if has_expected_result {
             fmt.printf(" (expected %v)", expected_result)
-            if strings.compare(expected_result, result) != 0 do error_count += 1
+            if expected_result != result do error_count += 1
         }
         fmt.println()
     }
