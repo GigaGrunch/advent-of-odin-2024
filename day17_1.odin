@@ -42,22 +42,104 @@ current_op_code :: proc(using interpreter: ^Interpreter) -> (res: Op_Code, ok: b
     else do return {}, false
 }
 
-current_operand :: proc(using interpreter: ^Interpreter) -> int {
-    return int(program[instruction_ptr + 1])
+current_operand :: proc(using interpreter: ^Interpreter) -> u8 {
+    return program[instruction_ptr + 1]
+}
+
+combo_operand :: proc(using interpreter: ^Interpreter, raw_operand: u8) -> int {
+    switch raw_operand {
+    case 0..=3: return int(raw_operand)
+    case 4: return register_a
+    case 5: return register_b
+    case 6: return register_c
+    case 7: fmt.printfln("Encountered special value %v", raw_operand)
+    }
+    panic("Failed to handle combo operand.")
+}
+
+execute_op :: proc(using interpreter: ^Interpreter, op_code: Op_Code, operand: u8) -> Maybe(int) {
+    switch op_code {
+    case .adv: register_a = register_a >> operand
+    case .bdv: register_b = register_a >> operand
+    case .cdv: register_c = register_a >> operand
+    case .bxl: register_b ~= int(operand)
+    case .bst: register_b = combo_operand(interpreter, operand) % 8
+    case .jnz: if register_a != 0 do instruction_ptr = int(operand) - 2
+    case .bxc: register_b ~= register_c
+    case .out: return combo_operand(interpreter, operand) % 8
+    }
+    return nil
 }
 
 @(test)
 test_interpreter :: proc(t: ^testing.T) {
     interpreter := Interpreter {
-        program = []u8 { 2, 4 },
+        program = []u8 {
+            0, 2, // adv
+            1, 0b1101, // bxl
+            2, 3, // bst with literal 3
+            2, 5, // bst with register_b
+            3, 8, // jnz (jump to self)
+            4, 0, // bxc
+            5, 2, // out with literal 2
+            5, 6, // out with register_c
+            6, 4, // bdv
+            7, 6, // cdv
+        },
     }
-    op_code, op_code_ok := current_op_code(&interpreter)
-    testing.expect(t, op_code_ok)
-    testing.expect_value(t, op_code, Op_Code.bst)
-    testing.expect_value(t, current_operand(&interpreter), 4)
-    interpreter.instruction_ptr += 2 // TODO: use step proc
-    op_code, op_code_ok = current_op_code(&interpreter)
-    testing.expect(t, !op_code_ok)
+    
+    test_next_op :: proc(t: ^testing.T, interpreter: ^Interpreter, expected_op: Op_Code, expected_operand: u8, expected_output: Maybe(int)) {
+        op_code, still_running := current_op_code(interpreter)
+        testing.expect(t, still_running)
+        testing.expect_value(t, op_code, expected_op)
+        operand := current_operand(interpreter)
+        testing.expect_value(t, operand, expected_operand)
+        output := execute_op(interpreter, op_code, operand)
+        testing.expect_value(t, output, expected_output)
+        interpreter.instruction_ptr += 2 // TODO: use step proc
+    }
+    
+    interpreter.register_a = 8
+    test_next_op(t, &interpreter, .adv, 2, nil)
+    testing.expect_value(t, interpreter.register_a, 2)
+    
+    interpreter.register_b = 0b1010
+    test_next_op(t, &interpreter, .bxl, 0b1101, nil)
+    testing.expect_value(t, interpreter.register_b, 0b0111)
+    
+    test_next_op(t, &interpreter, .bst, 3, nil)
+    testing.expect_value(t, interpreter.register_b, 3)
+    
+    interpreter.register_b = 10
+    test_next_op(t, &interpreter, .bst, 5, nil)
+    testing.expect_value(t, interpreter.register_b, 2)
+    
+    interpreter.register_a = 1
+    test_next_op(t, &interpreter, .jnz, 8, nil)
+    
+    interpreter.register_a = 0
+    test_next_op(t, &interpreter, .jnz, 8, nil)
+    
+    interpreter.register_b = 0b0110
+    interpreter.register_c = 0b1011
+    test_next_op(t, &interpreter, .bxc, 0, nil)
+    testing.expect_value(t, interpreter.register_b, 0b1101)
+    
+    test_next_op(t, &interpreter, .out, 2, 2)
+    
+    interpreter.register_c = 12
+    test_next_op(t, &interpreter, .out, 6, 4)
+    
+    interpreter.register_a = 17
+    test_next_op(t, &interpreter, .bdv, 4, nil)
+    testing.expect_value(t, interpreter.register_b, 1)
+    
+    interpreter.register_a = 64001
+    test_next_op(t, &interpreter, .cdv, 6, nil)
+    testing.expect_value(t, interpreter.register_c, 1000)
+    
+    _, still_running := current_op_code(&interpreter)
+    testing.expect_value(t, still_running, false)
 }
 
 main :: proc() {
