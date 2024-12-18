@@ -43,7 +43,10 @@ main :: proc() {
         expected_result, has_expected_result := runner.expected_result.?
         if has_expected_result {
             fmt.printf(" (expected %v)", expected_result)
-            if expected_result != result do error_count += 1
+            if expected_result != result {
+                error_count += 1
+                break
+            }
         }
         fmt.println()
     }
