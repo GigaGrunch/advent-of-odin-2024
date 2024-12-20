@@ -40,6 +40,7 @@ main :: proc() {
         result := execute(transmute(string)input)
         
         fmt.printf("%v -> %v", runner.file_path, result)
+        defer fmt.println()
         expected_result, has_expected_result := runner.expected_result.?
         if has_expected_result {
             fmt.printf(" (expected %v)", expected_result)
@@ -48,7 +49,6 @@ main :: proc() {
                 break
             }
         }
-        fmt.println()
     }
 }
 
