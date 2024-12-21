@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 import "core:strings"
+import "core:strconv"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
     { "day21_test.txt", 126384 },
@@ -38,50 +39,88 @@ execute :: proc(input: string) -> int {
         '>' = Vec{2, 1},
     }
     defer delete(dir_keypad)
+    
+    complexity_sum := 0
 
     line_it := input
     for number_code in strings.split_lines_iterator(&line_it) {
-        fmt.print(number_code, "-> ")
-        defer fmt.println()
-        
-        keypad := number_keypad
-        pos := keypad['A']
-        forbidden_pos := keypad['x']
-        
-        key_presses: [dynamic]u8
-        defer delete(key_presses)
-        
-        for char in transmute([]u8)number_code {
-            char_pos := keypad[char]
-            
-            first_axis := 0 if pos.x == forbidden_pos.x else 1
-            second_axis := (first_axis + 1) % 2
-            axes := []int{first_axis, second_axis}
-            for axis in axes {
-                diff := char_pos[axis] - pos[axis]
-                dir: Vec
-                dir[axis] = 1 if diff > 0 else -1
-                
-                key_press: u8
-                switch dir {
-                case Vec{0, -1}: key_press = '^'
-                case Vec{0, 1}: key_press = 'v'
-                case Vec{-1, 0}: key_press = '<'
-                case Vec{1, 0}: key_press = '>'
-                }
-                
-                for ;abs(diff) > 0; diff = char_pos[axis] - pos[axis] {
-                    pos += dir
-                    append(&key_presses, key_press)
-                }
-            }
-            
-            append(&key_presses, 'A')
+        fmt.println("----------------------")
+    
+        keypads := []map[u8]Vec {
+            number_keypad,
+            dir_keypad,
+            dir_keypad,
         }
         
-        fmt.print(transmute(string)key_presses[:])
+        current_code, next_code: [dynamic]u8
+        defer delete(current_code)
+        defer delete(next_code)
+        append(&current_code, ..transmute([]u8)number_code)
+        
+        for keypad in keypads {
+            pos := keypad['A']
+            forbidden_pos := keypad['x']
+            
+            clear(&next_code)
+            
+            fmt.print("\n")
+            
+            for char in current_code {
+                char_pos := keypad[char]
+                
+                first_axis := 0 if pos.x == forbidden_pos.x else 1
+                second_axis := (first_axis + 1) % 2
+                axes := []int{first_axis, second_axis}
+                for axis in axes {
+                    diff := char_pos[axis] - pos[axis]
+                    dir: Vec
+                    dir[axis] = 1 if diff > 0 else -1
+                    
+                    key_press: u8
+                    switch dir {
+                    case Vec{0, -1}: key_press = '^'
+                    case Vec{0, 1}: key_press = 'v'
+                    case Vec{-1, 0}: key_press = '<'
+                    case Vec{1, 0}: key_press = '>'
+                    }
+                    
+                    for ;abs(diff) > 0; diff = char_pos[axis] - pos[axis] {
+                        pos += dir
+                        append(&next_code, key_press)
+                        fmt.printf("%c\033[A\033[D \033[B", key_press)
+                    }
+                }
+                
+                append(&next_code, 'A')
+                fmt.printf("A\033[A\033[D%c\033[B", char)
+            }
+            
+            fmt.println()
+            fmt.println()
+            
+            clear(&current_code)
+            append(&current_code, ..next_code[:])
+        }
+        
+        number_code_digits: [dynamic]u8
+        defer delete(number_code_digits)
+        
+        for char in transmute([]u8)number_code {
+            switch char {
+            case '0'..='9': append(&number_code_digits, char)
+            }
+        }
+        
+        sequence_length := len(current_code)
+        code_number := strconv.atoi(transmute(string)number_code_digits[:])
+        
+        product := sequence_length * code_number
+        complexity_sum += product
+        
+        fmt.printfln("sequence length: %v, number: %v, %v * %v = %v", sequence_length, code_number, sequence_length, code_number, product)
     }
-    return 0
+    
+    return complexity_sum
 }
 
 main :: proc() {
