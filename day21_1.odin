@@ -12,9 +12,13 @@ runners := []struct{file_path: string, expected_result: Maybe(int)} {
 }
 
 Vec :: [2]int
+UP :: Vec{0, -1}
+DOWN :: Vec{0, 1}
+LEFT :: Vec{-1, 0}
+RIGHT :: Vec{1, 0}
 
-execute :: proc(input: string) -> int {
-    number_keypad := map[u8]Vec {
+get_number_keypad :: proc() -> map[u8]Vec {
+    return map[u8]Vec {
         '7' = Vec{0, 0},
         '8' = Vec{1, 0},
         '9' = Vec{2, 0},
@@ -28,9 +32,10 @@ execute :: proc(input: string) -> int {
         '0' = Vec{1, 3},
         'A' = Vec{2, 3},
     }
-    defer delete(number_keypad)
-    
-    dir_keypad := map[u8]Vec {
+}
+
+get_dir_keypad :: proc() -> map[u8]Vec {
+    return map[u8]Vec {
         'x' = Vec{0, 0},
         '^' = Vec{1, 0},
         'A' = Vec{2, 0},
@@ -38,6 +43,39 @@ execute :: proc(input: string) -> int {
         'v' = Vec{1, 1},
         '>' = Vec{2, 1},
     }
+}
+
+simulate :: proc(type: string, input: string) {
+    keypad := get_dir_keypad() if strings.compare(type, "dirs") == 0 else get_number_keypad()
+    defer delete(keypad)
+
+    button_map: [4*3]u8
+    index :: proc(pos: Vec) -> int { return pos.y * 3 + pos.x }
+    
+    for char, pos in keypad {
+        button_map[index(pos)] = char
+    }
+    
+    pos := keypad['A']
+    for char in transmute([]u8)input {
+        switch char {
+        case '<': pos += LEFT
+        case '>': pos += RIGHT
+        case '^': pos += UP
+        case 'v': pos += DOWN
+        case 'A': fmt.printf("%c", button_map[index(pos)])
+        }
+        if button_map[index(pos)] == 'x' do panic("")
+    }
+    
+    fmt.println()
+}
+
+execute :: proc(input: string) -> int {
+    number_keypad := get_number_keypad()
+    defer delete(number_keypad)
+    
+    dir_keypad := get_dir_keypad()
     defer delete(dir_keypad)
     
     complexity_sum := 0
@@ -78,10 +116,10 @@ execute :: proc(input: string) -> int {
                     
                     key_press: u8
                     switch dir {
-                    case Vec{0, -1}: key_press = '^'
-                    case Vec{0, 1}: key_press = 'v'
-                    case Vec{-1, 0}: key_press = '<'
-                    case Vec{1, 0}: key_press = '>'
+                    case UP: key_press = '^'
+                    case DOWN: key_press = 'v'
+                    case LEFT: key_press = '<'
+                    case RIGHT: key_press = '>'
                     }
                     
                     for ;abs(diff) > 0; diff = char_pos[axis] - pos[axis] {
@@ -134,6 +172,11 @@ main :: proc() {
     mem.tracking_allocator_init(&track, context.allocator)
     context.allocator = mem.tracking_allocator(&track)
     defer deinit_tracking_allocator(&track)
+    
+    if len(os.args) > 1 {
+        simulate(os.args[1], os.args[2])
+        return
+    }
     
     for runner in runners {
         input, file_ok := os.read_entire_file(runner.file_path)
