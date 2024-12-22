@@ -15,6 +15,10 @@ runners := []struct{file_path: string, expected_result: Maybe(int)} {
 execute :: proc(input: string) -> int {
     secret_numbers := make([][2000]int, 2001)
     defer delete(secret_numbers)
+    last_digits := make([][2000]int, 2001)
+    defer delete(last_digits)
+    last_digit_diffs := make([][2000]int, 2001)
+    defer delete(last_digit_diffs)
 
     index := 0
     line_it := input
@@ -27,9 +31,36 @@ execute :: proc(input: string) -> int {
         secret_numbers[i] = ((secret_numbers[i-1] * 64) ~ secret_numbers[i-1]) % 16777216
         secret_numbers[i] = ((secret_numbers[i] / 32) ~ secret_numbers[i]) % 16777216
         secret_numbers[i] = ((secret_numbers[i] * 2048) ~ secret_numbers[i]) % 16777216
+        
+        last_digits[i] = secret_numbers[i] % 10
+        last_digit_diffs[i] = last_digits[i] - last_digits[i-1]
     }
     
-    return math.sum(secret_numbers[2000][:])
+    max_payout := 0
+    for s_0 in -9..=9 do for s_1 in -9..=9 do for s_2 in -9..=9 do for s_3 in -9..=9 {
+        sequence := []int { s_0, s_1, s_2, s_3 }
+        payout: [2000]int
+        
+        outer: for buyer_i in 0..<index {
+            for step in 0..<len(last_digit_diffs) - 3 {
+                if last_digit_diffs[step][buyer_i] == sequence[0] &&
+                        last_digit_diffs[step+1][buyer_i] == sequence[1] &&
+                        last_digit_diffs[step+2][buyer_i] == sequence[2] &&
+                        last_digit_diffs[step+3][buyer_i] == sequence[3] {
+                    payout[buyer_i] = last_digits[step+3][buyer_i]
+                    continue outer
+                }
+            }
+        }
+        
+        payout_sum := math.sum(payout[:])
+        if payout_sum > max_payout {
+            max_payout = payout_sum
+            fmt.printfln("sequence %v, payout: %v", sequence, payout_sum)
+        }
+    }
+    
+    return max_payout
 }
 
 main :: proc() {
