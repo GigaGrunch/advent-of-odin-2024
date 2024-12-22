@@ -7,7 +7,7 @@ import "core:strings"
 import "core:strconv"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
-    { "day21_test.txt", 126384 },
+    { "day21_test.txt", nil },
     { "day21_input.txt", nil },
 }
 
@@ -84,10 +84,20 @@ execute :: proc(input: string) -> int {
     for number_code in strings.split_lines_iterator(&line_it) {
         keypads: [dynamic]map[u8]Vec
         defer delete(keypads)
-        append(&keypads, number_keypad)
-        for _ in 1..<26 do append(&keypads, dir_keypad)
         
-        min_innermost_sequence_len := find_optimal_sequence(number_code, keypads[:])
+        append(&keypads, number_keypad)
+        for _ in 0..<25 do append(&keypads, dir_keypad)
+        
+        known_answers := make([]map[string]int, len(keypads))
+        defer {
+            for m in known_answers {
+                for key in m do delete(key)
+                delete(m)
+            }
+            delete(known_answers)
+        }
+        
+        min_innermost_sequence_len := find_optimal_sequence(number_code, keypads[:], known_answers)
         
         code_digits: [dynamic]u8
         defer delete(code_digits)
@@ -104,7 +114,9 @@ execute :: proc(input: string) -> int {
     return complexity_sum
 }
 
-find_optimal_sequence :: proc(desired_sequence: string, keypads: []map[u8]Vec) -> int {
+find_optimal_sequence :: proc(desired_sequence: string, keypads: []map[u8]Vec, known_answers: []map[string]int) -> int {
+    if desired_sequence in known_answers[0] do return known_answers[0][desired_sequence]
+
     keypad := keypads[0]
     pos := keypad['A']
     forbidden_pos := keypad['x']
@@ -152,7 +164,7 @@ find_optimal_sequence :: proc(desired_sequence: string, keypads: []map[u8]Vec) -
             if len(sequence) == 0 do continue
         
             if len(keypads) > 1 {
-                innermost_sequence_len := find_optimal_sequence(transmute(string)sequence[:], keypads[1:])
+                innermost_sequence_len := find_optimal_sequence(transmute(string)sequence[:], keypads[1:], known_answers[1:])
                 min_innermost_sequence_len = min(innermost_sequence_len, min_innermost_sequence_len)
             } else {
                 min_innermost_sequence_len = min(len(sequence), min_innermost_sequence_len)
@@ -163,6 +175,7 @@ find_optimal_sequence :: proc(desired_sequence: string, keypads: []map[u8]Vec) -
         min_sequence_len_sum += min_innermost_sequence_len
     }
     
+    known_answers[0][fmt.aprint(desired_sequence)] = min_sequence_len_sum
     return min_sequence_len_sum
 }
 
