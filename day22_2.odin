@@ -8,27 +8,28 @@ import "core:strconv"
 import "core:math"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
-    { "day22_test1.txt", 37327623 },
+    { "day22_test2.txt", 23 },
     { "day22_input.txt", nil },
 }
 
 execute :: proc(input: string) -> int {
-    secret_numbers: [2000]int
+    secret_numbers := make([][2000]int, 2001)
+    defer delete(secret_numbers)
 
     index := 0
     line_it := input
     for line in strings.split_lines_iterator(&line_it) {
-        secret_numbers[index] = strconv.atoi(line)
+        secret_numbers[0][index] = strconv.atoi(line)
         index += 1
     }
     
-    for _ in 0..<2000 {
-        secret_numbers = ((secret_numbers * 64) ~ secret_numbers) % 16777216
-        secret_numbers = ((secret_numbers / 32) ~ secret_numbers) % 16777216
-        secret_numbers = ((secret_numbers * 2048) ~ secret_numbers) % 16777216
+    for i in 1..=2000 {
+        secret_numbers[i] = ((secret_numbers[i-1] * 64) ~ secret_numbers[i-1]) % 16777216
+        secret_numbers[i] = ((secret_numbers[i] / 32) ~ secret_numbers[i]) % 16777216
+        secret_numbers[i] = ((secret_numbers[i] * 2048) ~ secret_numbers[i]) % 16777216
     }
     
-    return math.sum(secret_numbers[:])
+    return math.sum(secret_numbers[2000][:])
 }
 
 main :: proc() {
