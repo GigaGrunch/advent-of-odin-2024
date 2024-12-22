@@ -82,83 +82,84 @@ execute :: proc(input: string) -> int {
 
     line_it := input
     for number_code in strings.split_lines_iterator(&line_it) {
-        fmt.println("----------------------")
-    
-        keypads := []map[u8]Vec {
-            number_keypad,
-            dir_keypad,
-            dir_keypad,
-        }
+        keypads := []map[u8]Vec { number_keypad, dir_keypad, dir_keypad }
+        min_innermost_sequence_len := find_optimal_sequence(number_code, keypads)
         
-        current_code, next_code: [dynamic]u8
-        defer delete(current_code)
-        defer delete(next_code)
-        append(&current_code, ..transmute([]u8)number_code)
-        
-        for keypad in keypads {
-            pos := keypad['A']
-            forbidden_pos := keypad['x']
-            
-            clear(&next_code)
-            
-            fmt.print("\n")
-            
-            for char in current_code {
-                char_pos := keypad[char]
-                
-                first_axis := 0 if pos.x == forbidden_pos.x else 1
-                second_axis := (first_axis + 1) % 2
-                axes := []int{first_axis, second_axis}
-                for axis in axes {
-                    diff := char_pos[axis] - pos[axis]
-                    dir: Vec
-                    dir[axis] = 1 if diff > 0 else -1
-                    
-                    key_press: u8
-                    switch dir {
-                    case UP: key_press = '^'
-                    case DOWN: key_press = 'v'
-                    case LEFT: key_press = '<'
-                    case RIGHT: key_press = '>'
-                    }
-                    
-                    for ;abs(diff) > 0; diff = char_pos[axis] - pos[axis] {
-                        pos += dir
-                        append(&next_code, key_press)
-                        fmt.printf("%c\033[A\033[D \033[B", key_press)
-                    }
-                }
-                
-                append(&next_code, 'A')
-                fmt.printf("A\033[A\033[D%c\033[B", char)
-            }
-            
-            fmt.println()
-            fmt.println()
-            
-            clear(&current_code)
-            append(&current_code, ..next_code[:])
-        }
-        
-        number_code_digits: [dynamic]u8
-        defer delete(number_code_digits)
-        
+        code_digits: [dynamic]u8
+        defer delete(code_digits)
         for char in transmute([]u8)number_code {
             switch char {
-            case '0'..='9': append(&number_code_digits, char)
+            case '0'..='9': append(&code_digits, char)
             }
         }
         
-        sequence_length := len(current_code)
-        code_number := strconv.atoi(transmute(string)number_code_digits[:])
-        
-        product := sequence_length * code_number
-        complexity_sum += product
-        
-        fmt.printfln("sequence length: %v, number: %v, %v * %v = %v", sequence_length, code_number, sequence_length, code_number, product)
+        code_number := strconv.atoi(transmute(string)code_digits[:])
+        complexity_sum += min_innermost_sequence_len * code_number
     }
     
     return complexity_sum
+}
+
+find_optimal_sequence :: proc(desired_sequence: string, keypads: []map[u8]Vec) -> int {
+    keypad := keypads[0]
+    pos := keypad['A']
+    forbidden_pos := keypad['x']
+    
+    min_sequence_len_sum := 0
+
+    for char in transmute([]u8)desired_sequence {
+        char_pos := keypad[char]
+        defer pos = char_pos
+        pos_diff := char_pos - pos
+        
+        x_steps: [dynamic]u8
+        defer delete(x_steps)
+        for _ in 0..<abs(pos_diff.x) {
+            if pos_diff.x < 0 do append(&x_steps, '<')
+            else if pos_diff.x > 0 do append(&x_steps, '>')
+        }
+        
+        y_steps: [dynamic]u8
+        defer delete(y_steps)
+        for _ in 0..<abs(pos_diff.y) {
+            if pos_diff.y < 0 do append(&y_steps, '^')
+            else if pos_diff.y > 0 do append(&y_steps, 'v')
+        }
+        
+        sequences: [2][dynamic]u8
+        defer for s in sequences do delete(s)
+        
+        if len(x_steps) > 0 && (pos.y != forbidden_pos.y || char_pos.x != forbidden_pos.x) {
+            append(&sequences[0], ..x_steps[:])
+            append(&sequences[0], ..y_steps[:])
+            append(&sequences[0], 'A')
+        }
+        
+        if len(y_steps) > 0 && (pos.x != forbidden_pos.x || char_pos.y != forbidden_pos.y) {
+            append(&sequences[1], ..y_steps[:])
+            append(&sequences[1], ..x_steps[:])
+            append(&sequences[1], 'A')
+        }
+        
+        if len(x_steps) == 0 && len(y_steps) == 0 do append(&sequences[0], 'A')
+        
+        min_innermost_sequence_len := max(int)
+        for sequence in sequences {
+            if len(sequence) == 0 do continue
+        
+            if len(keypads) > 1 {
+                innermost_sequence_len := find_optimal_sequence(transmute(string)sequence[:], keypads[1:])
+                min_innermost_sequence_len = min(innermost_sequence_len, min_innermost_sequence_len)
+            } else {
+                min_innermost_sequence_len = min(len(sequence), min_innermost_sequence_len)
+            }
+        }
+        
+        assert(min_innermost_sequence_len < max(int))
+        min_sequence_len_sum += min_innermost_sequence_len
+    }
+    
+    return min_sequence_len_sum
 }
 
 main :: proc() {
