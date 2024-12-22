@@ -18,9 +18,9 @@ execute :: proc(input: string) -> int {
 
     secret_numbers := make([][MAX_BUYER_COUNT]int, SECRET_NUMBER_COUNT)
     defer delete(secret_numbers)
-    last_digits := make([][SECRET_NUMBER_COUNT]int, MAX_BUYER_COUNT)
+    last_digits := make([][SECRET_NUMBER_COUNT]i8, MAX_BUYER_COUNT)
     defer delete(last_digits)
-    last_digit_diffs := make([][SECRET_NUMBER_COUNT]int, MAX_BUYER_COUNT)
+    last_digit_diffs := make([][SECRET_NUMBER_COUNT]i8, MAX_BUYER_COUNT)
     defer delete(last_digit_diffs)
 
     buyer_count := 0
@@ -38,35 +38,52 @@ execute :: proc(input: string) -> int {
     
     for buyer_i in 0..<buyer_count {
         for digit_i in 0..<SECRET_NUMBER_COUNT {
-            last_digits[buyer_i][digit_i] = secret_numbers[digit_i][buyer_i] % 10
+            last_digits[buyer_i][digit_i] = i8(secret_numbers[digit_i][buyer_i] % 10)
         }
         for digit_i in 1..<SECRET_NUMBER_COUNT {
             last_digit_diffs[buyer_i][digit_i] = last_digits[buyer_i][digit_i] - last_digits[buyer_i][digit_i-1]
         }
     }
     
+    sequence_maps := make([]map[[4]i8]i8, buyer_count)
+    defer {
+        for m in sequence_maps do delete(m)
+        delete(sequence_maps)
+    }
+    
+    for buyer_i in 0..<buyer_count {
+        for step in 1..<SECRET_NUMBER_COUNT - 3 {
+            sequence := [4]i8 {
+                last_digit_diffs[buyer_i][step],
+                last_digit_diffs[buyer_i][step+1],
+                last_digit_diffs[buyer_i][step+2],
+                last_digit_diffs[buyer_i][step+3],
+            }
+            if sequence not_in sequence_maps[buyer_i] {
+                sequence_maps[buyer_i][sequence] = last_digits[buyer_i][step+3]
+            }
+        }
+    }
+    
+    sequence_index := 0
+    sequence_count := 19 * 19 * 19 * 19
+    
     max_payout := 0
     for s_0 in -9..=9 do for s_1 in -9..=9 do for s_2 in -9..=9 do for s_3 in -9..=9 {
-        sequence := []int { s_0, s_1, s_2, s_3 }
+        sequence := [4]i8 { i8(s_0), i8(s_1), i8(s_2), i8(s_3) }
         payout: [MAX_BUYER_COUNT]int
         
-        outer: for buyer_i in 0..<buyer_count {
-            for step in 1..<SECRET_NUMBER_COUNT - 3 {
-                if last_digit_diffs[buyer_i][step] == sequence[0] &&
-                        last_digit_diffs[buyer_i][step+1] == sequence[1] &&
-                        last_digit_diffs[buyer_i][step+2] == sequence[2] &&
-                        last_digit_diffs[buyer_i][step+3] == sequence[3] {
-                    payout[buyer_i] = last_digits[buyer_i][step+3]
-                    continue outer
-                }
-            }
+        defer sequence_index += 1
+        fmt.printf("sequence %v/%v   \r", sequence_index+1, sequence_count)
+        
+        for buyer_i in 0..<buyer_count {
+            payout[buyer_i] = int(sequence_maps[buyer_i][sequence])
         }
         
         payout_sum := math.sum(payout[:])
-        fmt.printf("\rsequence %v, payout: %v                 ", sequence, payout_sum)
         if payout_sum > max_payout {
             max_payout = payout_sum
-            fmt.println()
+            fmt.printfln("sequence %v, payout: %v", sequence, payout_sum)
         }
     }
     
