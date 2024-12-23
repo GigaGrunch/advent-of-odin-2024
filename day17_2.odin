@@ -6,11 +6,10 @@ import "core:os"
 import "core:strings"
 import "core:strconv"
 import "core:testing"
-import "core:slice"
 
 runners := []struct{file_path: string, expected_result: Maybe(int)} {
     { "day17_test2.txt", 117440 },
-    // { "day17_input.txt", nil },
+    { "day17_input.txt", nil },
 }
 
 execute :: proc(input: string) -> int {
@@ -46,24 +45,36 @@ execute :: proc(input: string) -> int {
     
     interpreter.program = program[:]
     
-    output_values: [dynamic]u8
+    output_values := make([]u8, len(interpreter.program))
     defer delete(output_values)
     
-    register_a := 0
-    for {
-        clear(&output_values)
+    register_a := 1
+    for _ in 1..<len(interpreter.program) do register_a *= 8
+    
+    outer: for {
         interpreter.instruction_ptr = 0
         interpreter.register_a = register_a
+        output_index := 0
         for op_code in current_op_code(&interpreter) {
             operand := current_operand(&interpreter)
             output := execute_op(&interpreter, op_code, operand)
-            if output != nil do append(&output_values, output.?)
+            if output != nil {
+                output_values[output_index] = output.?
+                output_index += 1
+            }
             interpreter.instruction_ptr += 2
         }
         
-        if slice.equal(interpreter.program, output_values[:]) do break
-        else do register_a += 1
+        for i := len(output_values)-1; i >= 0; i -= 1 {
+            if output_values[i] != interpreter.program[i] {
+                register_a += 1 << uint(3 * i)
+                continue outer
+            }
+        }
+        
+        break outer
     }
+    
     return register_a
 }
 
@@ -221,12 +232,15 @@ main :: proc() {
         result := execute(transmute(string)input)
         
         fmt.printf("%v -> %v", runner.file_path, result)
+        defer fmt.println()
         expected_result, has_expected_result := runner.expected_result.?
         if has_expected_result {
             fmt.printf(" (expected %v)", expected_result)
-            if expected_result != result do error_count += 1
+            if expected_result != result {
+                error_count += 1
+                break
+            }
         }
-        fmt.println()
     }
 }
 
