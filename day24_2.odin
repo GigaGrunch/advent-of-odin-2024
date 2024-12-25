@@ -117,6 +117,8 @@ execute :: proc(input: string, swap_pairs: int, super_op: string) -> string {
     swap_gates := make([]int, swap_pairs * 2)
     defer delete(swap_gates)
     
+    for i in 0..<len(swap_gates) do swap_gates[i] = len(swap_gates) - i - 1
+    
     outer: for {
         has_dupes := false
         for i in 0..<len(swap_gates) {
@@ -129,6 +131,7 @@ execute :: proc(input: string, swap_pairs: int, super_op: string) -> string {
         
         if !has_dupes {
             fmt.printf("swap: %v ", swap_gates)
+            defer fmt.println()
         
             pending_gates: [dynamic]Gate
             defer delete(pending_gates)
@@ -148,12 +151,22 @@ execute :: proc(input: string, swap_pairs: int, super_op: string) -> string {
             defer delete(values)
             for name, value in initial_values do values[name] = value
     
-            for len(pending_gates) > 0 {
+            pending_changed := true
+            has_pending_xyz := true
+            for pending_changed {
+                pending_changed = false
+                has_pending_xyz = false
                 for pending_gate_i := len(pending_gates) - 1; pending_gate_i >= 0; pending_gate_i -= 1 {
                     gate := pending_gates[pending_gate_i]
-                    if gate.lhs not_in values || gate.rhs not_in values do continue
+                    if gate.lhs not_in values || gate.rhs not_in values {
+                        switch gate.out[0] {
+                        case 'x', 'y', 'z': has_pending_xyz = true
+                        }
+                        continue
+                    }
                     assert(gate.out not_in values)
                     defer unordered_remove(&pending_gates, pending_gate_i)
+                    pending_changed = true
                     switch gate.op {
                     case .and: values[gate.out] = values[gate.lhs] & values[gate.rhs]
                     case .or: values[gate.out] = values[gate.lhs] | values[gate.rhs]
@@ -162,20 +175,22 @@ execute :: proc(input: string, swap_pairs: int, super_op: string) -> string {
                 }
             }
             
-            for name, i in sorted_x_names do sorted_x_values[i] = values[name]
-            for name, i in sorted_y_names do sorted_y_values[i] = values[name]
-            for name, i in sorted_z_names do sorted_z_values[i] = values[name]
-            
-            fmt.printf("z: %v ", sorted_z_values)
-            
-            x := int_from_bits(sorted_x_values[:])
-            y := int_from_bits(sorted_y_values[:])
-            z := int_from_bits(sorted_z_values[:])
-            
-            fmt.printfln("=> %v %v %v = %v", x, super_op, y, z)
-            switch super_op {
-            case "+": if x + y == z do break outer
-            case "&": if x & y == z do break outer
+            if !has_pending_xyz {
+                for name, i in sorted_x_names do sorted_x_values[i] = values[name]
+                for name, i in sorted_y_names do sorted_y_values[i] = values[name]
+                for name, i in sorted_z_names do sorted_z_values[i] = values[name]
+                
+                fmt.printf("z: %v ", sorted_z_values)
+                
+                x := int_from_bits(sorted_x_values[:])
+                y := int_from_bits(sorted_y_values[:])
+                z := int_from_bits(sorted_z_values[:])
+                
+                fmt.printf("=> %v %v %v = %v", x, super_op, y, z)
+                switch super_op {
+                case "+": if x + y == z do break outer
+                case "&": if x & y == z do break outer
+                }
             }
         }
         
