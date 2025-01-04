@@ -44,7 +44,14 @@ execute :: proc(input: string, least_saved_picoseconds: int) -> int {
         height += 1
     }
 
-    initial_shortest_path := shortest_path_length(field_map[:], width, height, start_pos, end_pos)
+    frontier := make(map[Vec]struct{})
+    defer delete(frontier)
+    path_lengths := make([]int, width * height)
+    defer delete(path_lengths)
+    guess_lengths := make([]int, width * height)
+    defer delete(guess_lengths)
+
+    initial_shortest_path := shortest_path_length(field_map[:], width, height, start_pos, end_pos, &frontier, path_lengths, guess_lengths)
     much_shorter_paths := 0
 
     for y in 0..<height {
@@ -56,7 +63,7 @@ execute :: proc(input: string, least_saved_picoseconds: int) -> int {
             char^ = '.'
             defer char^ = '#'
 
-            shortest_path := shortest_path_length(field_map[:], width, height, start_pos, end_pos)
+            shortest_path := shortest_path_length(field_map[:], width, height, start_pos, end_pos, &frontier, path_lengths, guess_lengths)
             if shortest_path <= initial_shortest_path - least_saved_picoseconds do much_shorter_paths += 1
         }
     }
@@ -64,17 +71,14 @@ execute :: proc(input: string, least_saved_picoseconds: int) -> int {
     return much_shorter_paths
 }
 
-shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end_pos: Vec) -> int {
-    defer free_all(context.temp_allocator)
-
-    frontier := make(map[Vec]struct{}, allocator=context.temp_allocator)
+shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end_pos: Vec, frontier: ^map[Vec]struct{}, path_lengths, guess_lengths: []int) -> int {
+    clear(frontier)
     frontier[start_pos] = {}
 
-    path_lengths := make([]int, width * height, allocator=context.temp_allocator)
     slice.fill(path_lengths, max(int))
     at_ptr(path_lengths, width, height, start_pos)^ = 0
 
-    guess_lengths := make([]int, width * height, allocator=context.temp_allocator)
+
     slice.fill(guess_lengths, max(int))
     at_ptr(guess_lengths, width, height, start_pos)^ = get_direct_distance(start_pos, end_pos)
 
@@ -92,7 +96,7 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
         path_length := at(path_lengths, width, height, pos)
         if pos == end_pos do return path_length
 
-        delete_key(&frontier, pos)
+        delete_key(frontier, pos)
 
         for direction in DIRECTIONS {
             neighbor := pos + direction
