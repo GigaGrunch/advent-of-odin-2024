@@ -65,17 +65,16 @@ execute :: proc(input: string, least_saved_picoseconds: int) -> int {
 }
 
 shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end_pos: Vec) -> int {
-    frontier: map[Vec]struct{}
-    defer delete(frontier)
+    defer free_all(context.temp_allocator)
+
+    frontier := make(map[Vec]struct{}, allocator=context.temp_allocator)
     frontier[start_pos] = {}
 
-    path_lengths := make([]int, width * height)
-    defer delete(path_lengths)
+    path_lengths := make([]int, width * height, allocator=context.temp_allocator)
     slice.fill(path_lengths, max(int))
     at_ptr(path_lengths, width, height, start_pos)^ = 0
 
-    guess_lengths := make([]int, width * height)
-    defer delete(guess_lengths)
+    guess_lengths := make([]int, width * height, allocator=context.temp_allocator)
     slice.fill(guess_lengths, max(int))
     at_ptr(guess_lengths, width, height, start_pos)^ = get_direct_distance(start_pos, end_pos)
 
