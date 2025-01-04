@@ -11,18 +11,18 @@ runners := []struct{file_path: string, least_saved_picoseconds: int, expected_re
     { "day20_input.txt", 100, nil },
 }
 
-Vec :: [2]int
+Vec :: [2]u8
 DIRECTIONS :: []Vec {
-    Vec{0, -1},
+    Vec{0, max(u8)},
     Vec{0, 1},
-    Vec{-1, 0},
+    Vec{max(u8), 0},
     Vec{1, 0},
 }
 
 execute :: proc(input: string, least_saved_picoseconds: int) -> int {
     field_map: [dynamic]u8
     defer delete(field_map)
-    
+
     width, height: int
     start_pos, end_pos: Vec
 
@@ -31,36 +31,36 @@ execute :: proc(input: string, least_saved_picoseconds: int) -> int {
         y := height
         for char, x in transmute([]u8)line {
             append(&field_map, char)
-            
-            pos := Vec{x, y}
+
+            pos := Vec{u8(x), u8(y)}
             switch char {
             case 'S': start_pos = pos
             case 'E': end_pos = pos
             }
         }
-        
+
         if width == 0 do width = len(line)
         else do assert(len(line) == width)
         height += 1
     }
-    
+
     initial_shortest_path := shortest_path_length(field_map[:], width, height, start_pos, end_pos)
     much_shorter_paths := 0
-    
+
     for y in 0..<height {
         for x in 0..<width {
-            pos := Vec{x, y}
+            pos := Vec{u8(x), u8(y)}
             char := at_ptr(field_map[:], width, height, pos)
             if char^ != '#' do continue
-            
+
             char^ = '.'
             defer char^ = '#'
-            
+
             shortest_path := shortest_path_length(field_map[:], width, height, start_pos, end_pos)
             if shortest_path <= initial_shortest_path - least_saved_picoseconds do much_shorter_paths += 1
         }
     }
-    
+
     return much_shorter_paths
 }
 
@@ -68,17 +68,17 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
     frontier: map[Vec]struct{}
     defer delete(frontier)
     frontier[start_pos] = {}
-    
+
     path_lengths := make([]int, width * height)
     defer delete(path_lengths)
     slice.fill(path_lengths, max(int))
     at_ptr(path_lengths, width, height, start_pos)^ = 0
-    
+
     guess_lengths := make([]int, width * height)
     defer delete(guess_lengths)
     slice.fill(guess_lengths, max(int))
     at_ptr(guess_lengths, width, height, start_pos)^ = get_direct_distance(start_pos, end_pos)
-    
+
     for len(frontier) > 0 {
         guess_length := max(int)
         pos: Vec
@@ -89,21 +89,21 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
                 pos = frontier_pos
             }
         }
-        
+
         path_length := at(path_lengths, width, height, pos)
         if pos == end_pos do return path_length
-        
+
         delete_key(&frontier, pos)
-        
+
         for direction in DIRECTIONS {
             neighbor := pos + direction
             if out_of_bounds(neighbor, width, height) do continue
             if at(field_map, width, height, neighbor) == '#' do continue
-            
+
             neighbor_path_length := at_ptr(path_lengths, width, height, neighbor)
             tentative_path_length := path_length + 1
             if tentative_path_length >= neighbor_path_length^ do continue
-            
+
             neighbor_path_length^ = tentative_path_length
             neighbor_guess_length := at_ptr(guess_lengths, width, height, neighbor)
             neighbor_guess_length^ = tentative_path_length + get_direct_distance(neighbor, end_pos)
@@ -115,19 +115,23 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
 }
 
 out_of_bounds :: proc(pos: Vec, width, height: int) -> bool {
-    return pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height
+    return pos.x >= u8(width) || pos.y >= u8(height)
 }
 
 get_direct_distance :: proc(lhs, rhs: Vec) -> int {
-    return abs(lhs.x - rhs.x) + abs(lhs.y - rhs.y)
+    return int(abs(lhs.x - rhs.x) + abs(lhs.y - rhs.y))
 }
 
 at :: proc(list: []$T, width, height: int, pos: Vec) -> T {
-    return list[pos.y * width + pos.x]
+    return list[to_index(width, height, pos)]
 }
 
-at_ptr :: proc(list: []$T, width, height: int, pos: Vec) -> ^T {
-    return &list[pos.y * width + pos.x]
+at_ptr :: proc(list: []$T, width, height: int, pos: Vec, loc := #caller_location) -> ^T {
+    return &list[to_index(width, height, pos)]
+}
+
+to_index :: proc(width, height: int, pos: Vec) -> int {
+    return int(pos.y) * width + int(pos.x)
 }
 
 print_map ::proc(field_map: []u8, width, height: int) {
@@ -148,7 +152,7 @@ main :: proc() {
     mem.tracking_allocator_init(&track, context.allocator)
     context.allocator = mem.tracking_allocator(&track)
     defer deinit_tracking_allocator(&track)
-    
+
     for runner in runners {
         input, file_ok := os.read_entire_file(runner.file_path)
         defer delete(input)
@@ -158,7 +162,7 @@ main :: proc() {
             continue
         }
         result := execute(transmute(string)input, runner.least_saved_picoseconds)
-        
+
         fmt.printf("%v -> %v", runner.file_path, result)
         defer fmt.println()
         expected_result, has_expected_result := runner.expected_result.?
