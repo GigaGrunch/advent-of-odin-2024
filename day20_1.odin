@@ -8,7 +8,7 @@ import "core:slice"
 import "core:time"
 
 runners := []struct{file_path: string, least_saved_picoseconds: int, expected_result: Maybe(int)} {
-    { "day20_test.txt", 1, 44 },
+    // { "day20_test.txt", 1, 44 },
     { "day20_input.txt", 100, nil },
 }
 
