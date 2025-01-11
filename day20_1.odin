@@ -65,7 +65,7 @@ execute :: proc(input: string, least_saved_picoseconds: int) -> int {
         height += 1
     }
 
-    frontier := make(map[Vec]struct{})
+    frontier := make([dynamic]Vec)
     defer delete(frontier)
     path_lengths := make([]int, width * height)
     defer delete(path_lengths)
@@ -94,14 +94,14 @@ execute :: proc(input: string, least_saved_picoseconds: int) -> int {
     return much_shorter_paths
 }
 
-shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end_pos: Vec, frontier: ^map[Vec]struct{}, path_lengths, guess_lengths: []int) -> int {
+shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end_pos: Vec, frontier: ^[dynamic]Vec, path_lengths, guess_lengths: []int) -> int {
     profile.total -= time.read_cycle_counter()
     defer profile.total += time.read_cycle_counter()
 
     profile.init -= time.read_cycle_counter()
 
     clear(frontier)
-    frontier[start_pos] = {}
+    append_elem(frontier, start_pos)
 
     slice.fill(path_lengths, max(int))
     at_ptr(path_lengths, width, height, start_pos)^ = 0
@@ -116,11 +116,13 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
 
         guess_length := max(int)
         pos: Vec
-        for frontier_pos in frontier {
+        pos_index: int
+        for frontier_pos, i in frontier {
             length := at(guess_lengths, width, height, frontier_pos)
             if length < guess_length {
                 guess_length = length
                 pos = frontier_pos
+                pos_index = i
             }
         }
 
@@ -130,7 +132,7 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
         if pos == end_pos do return path_length
 
         profile.delete_key -= time.read_cycle_counter()
-        delete_key(frontier, pos)
+        unordered_remove(frontier, pos_index)
         profile.delete_key += time.read_cycle_counter()
 
         profile.direction_loop -= time.read_cycle_counter()
@@ -147,7 +149,7 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
             neighbor_path_length^ = tentative_path_length
             neighbor_guess_length := at_ptr(guess_lengths, width, height, neighbor)
             neighbor_guess_length^ = tentative_path_length + get_direct_distance(neighbor, end_pos)
-            frontier[neighbor] = {}
+            append_elem(frontier, neighbor)
         }
 
         profile.direction_loop += time.read_cycle_counter()
