@@ -6,7 +6,6 @@ import "core:os"
 import "core:strings"
 import "core:slice"
 import "core:sort"
-import "core:time"
 
 runners := []struct{file_path: string, least_saved_picoseconds: int, expected_result: Maybe(int)} {
     // { "day20_test.txt", 1, 44 },
@@ -19,26 +18,6 @@ DIRECTIONS :: []Vec {
     Vec{0, 1},
     Vec{max(u8), 0},
     Vec{1, 0},
-}
-
-profile: struct {
-    total: u64,
-    init: u64,
-    select_candidate: u64,
-    delete_key: u64,
-    direction_loop: u64,
-}
-
-print_profile :: proc() {
-    print_value :: proc(name: string, value: u64) {
-        fmt.printfln("%s %d (%.0f %%)", name, value, 100.0 * cast(f32)value / cast(f32)profile.total)
-    }
-
-    print_value("total", profile.total)
-    print_value("init", profile.init)
-    print_value("select_candidate", profile.select_candidate)
-    print_value("delete_key", profile.delete_key)
-    print_value("direction_loop", profile.direction_loop)
 }
 
 execute :: proc(input: string, least_saved_picoseconds: int) -> int {
@@ -90,17 +69,10 @@ execute :: proc(input: string, least_saved_picoseconds: int) -> int {
         }
     }
 
-    print_profile()
-
     return much_shorter_paths
 }
 
 shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end_pos: Vec, frontier: ^[dynamic]Vec, path_lengths, guess_lengths: []int) -> int {
-    profile.total -= time.read_cycle_counter()
-    defer profile.total += time.read_cycle_counter()
-
-    profile.init -= time.read_cycle_counter()
-
     clear(frontier)
     append_elem(frontier, start_pos)
 
@@ -110,11 +82,7 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
     slice.fill(guess_lengths, max(int))
     at_ptr(guess_lengths, width, height, start_pos)^ = get_direct_distance(start_pos, end_pos)
 
-    profile.init += time.read_cycle_counter()
-
     for len(frontier) > 0 {
-        profile.select_candidate -= time.read_cycle_counter()
-
         Frontier_Sort :: struct {
             frontier: []Vec,
             guess_lengths: []int,
@@ -144,16 +112,10 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
             },
         })
 
-        profile.select_candidate += time.read_cycle_counter()
-
-        profile.delete_key -= time.read_cycle_counter()
         pos := pop(frontier)
-        profile.delete_key += time.read_cycle_counter()
 
         path_length := at(path_lengths, width, height, pos)
         if pos == end_pos do return path_length
-
-        profile.direction_loop -= time.read_cycle_counter()
 
         for direction in DIRECTIONS {
             neighbor := pos + direction
@@ -169,8 +131,6 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
             neighbor_guess_length^ = tentative_path_length + get_direct_distance(neighbor, end_pos)
             append_elem(frontier, neighbor)
         }
-
-        profile.direction_loop += time.read_cycle_counter()
     }
 
     return max(int)
