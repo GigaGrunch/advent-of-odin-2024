@@ -5,6 +5,7 @@ import "core:mem"
 import "core:os"
 import "core:strings"
 import "core:slice"
+import "core:sort"
 import "core:time"
 
 runners := []struct{file_path: string, least_saved_picoseconds: int, expected_result: Maybe(int)} {
@@ -114,26 +115,43 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
     for len(frontier) > 0 {
         profile.select_candidate -= time.read_cycle_counter()
 
-        guess_length := max(int)
-        pos: Vec
-        pos_index: int
-        for frontier_pos, i in frontier {
-            length := at(guess_lengths, width, height, frontier_pos)
-            if length < guess_length {
-                guess_length = length
-                pos = frontier_pos
-                pos_index = i
-            }
+        Frontier_Sort :: struct {
+            frontier: []Vec,
+            guess_lengths: []int,
+            width, height: int,
         }
+
+        sort.reverse_sort(sort.Interface {
+            collection = &Frontier_Sort {
+                frontier = frontier[:],
+                guess_lengths = guess_lengths,
+                width = width,
+                height = height,
+            },
+            len = proc(it: sort.Interface) -> int {
+                wrapper := cast(^Frontier_Sort)it.collection
+                return len(wrapper.frontier)
+            },
+            less = proc(it: sort.Interface, a, b: int) -> bool {
+                wrapper := cast(^Frontier_Sort)it.collection
+                a_len := at(wrapper.guess_lengths, wrapper.width, wrapper.height, wrapper.frontier[a])
+                b_len := at(wrapper.guess_lengths, wrapper.width, wrapper.height, wrapper.frontier[b])
+                return a_len < b_len
+            },
+            swap = proc(it: sort.Interface, a, b: int) {
+                wrapper := cast(^Frontier_Sort)it.collection
+                slice.swap(wrapper.frontier, a, b)
+            },
+        })
 
         profile.select_candidate += time.read_cycle_counter()
 
+        profile.delete_key -= time.read_cycle_counter()
+        pos := pop(frontier)
+        profile.delete_key += time.read_cycle_counter()
+
         path_length := at(path_lengths, width, height, pos)
         if pos == end_pos do return path_length
-
-        profile.delete_key -= time.read_cycle_counter()
-        unordered_remove(frontier, pos_index)
-        profile.delete_key += time.read_cycle_counter()
 
         profile.direction_loop -= time.read_cycle_counter()
 
