@@ -9,7 +9,7 @@ import "core:time"
 
 runners := []struct{file_path: string, least_saved_picoseconds: int, expected_result: Maybe(int)} {
     // { "day20_test.txt", 1, 44 },
-    { "day20_input.txt", 100, nil },
+    { "day20_input.txt", 100, 1459 },
 }
 
 Vec :: [2]u8
