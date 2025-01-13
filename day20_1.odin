@@ -5,7 +5,6 @@ import "core:mem"
 import "core:os"
 import "core:strings"
 import "core:slice"
-import "core:sort"
 
 runners := []struct{file_path: string, least_saved_picoseconds: int, expected_result: Maybe(int)} {
     // { "day20_test.txt", 1, 44 },
@@ -83,35 +82,6 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
     at_ptr(guess_lengths, width, height, start_pos)^ = get_direct_distance(start_pos, end_pos)
 
     for len(frontier) > 0 {
-        Frontier_Sort :: struct {
-            frontier: []Vec,
-            guess_lengths: []int,
-            width, height: int,
-        }
-
-        sort.reverse_sort(sort.Interface {
-            collection = &Frontier_Sort {
-                frontier = frontier[:],
-                guess_lengths = guess_lengths,
-                width = width,
-                height = height,
-            },
-            len = proc(it: sort.Interface) -> int {
-                wrapper := cast(^Frontier_Sort)it.collection
-                return len(wrapper.frontier)
-            },
-            less = proc(it: sort.Interface, a, b: int) -> bool {
-                wrapper := cast(^Frontier_Sort)it.collection
-                a_len := at(wrapper.guess_lengths, wrapper.width, wrapper.height, wrapper.frontier[a])
-                b_len := at(wrapper.guess_lengths, wrapper.width, wrapper.height, wrapper.frontier[b])
-                return a_len < b_len
-            },
-            swap = proc(it: sort.Interface, a, b: int) {
-                wrapper := cast(^Frontier_Sort)it.collection
-                slice.swap(wrapper.frontier, a, b)
-            },
-        })
-
         pos := pop(frontier)
 
         path_length := at(path_lengths, width, height, pos)
@@ -129,7 +99,13 @@ shortest_path_length :: proc(field_map: []u8, width, height: int, start_pos, end
             neighbor_path_length^ = tentative_path_length
             neighbor_guess_length := at_ptr(guess_lengths, width, height, neighbor)
             neighbor_guess_length^ = tentative_path_length + get_direct_distance(neighbor, end_pos)
-            append_elem(frontier, neighbor)
+
+            i := 0
+            for ;i < len(frontier); i += 1 {
+                other_guess_length := at(guess_lengths, width, height, frontier[i])
+                if other_guess_length < neighbor_guess_length^ do break
+            }
+            inject_at_elem(frontier, i, neighbor)
         }
     }
 
